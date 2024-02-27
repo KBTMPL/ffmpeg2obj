@@ -1,0 +1,3 @@
+[flake8]
+# Ignore line legnth checks
+extend-ignore = E501
