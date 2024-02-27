@@ -135,17 +135,18 @@ def get_processed_files(
     return processed_files
 
 
-def get_locked_processed_files(
+def filter_locked_processed_files(
     processed_files: list[ProcessedFile],
 ) -> list[ProcessedFile]:
-    """Returns processed files that are locked"""
+    """Returns processed files that are not locked"""
     return list(filter(lambda x: not x.is_locked, processed_files))
 
 
-def get_uploaded_processed_files(
+def filter_uploaded_processed_files(
     processed_files: list[ProcessedFile],
 ) -> list[ProcessedFile]:
-    """Returns processed files that are uploaded"""
+    """Returns processed files that are not uploaded"""
+    # consider adding and x.is_locked
     return list(filter(lambda x: not x.is_uploaded, processed_files))
 
 
@@ -162,10 +163,23 @@ def main():
     if selected_bucket_exist(obj_client, args.bucket_name):
         bucket_objects = get_bucket_objects(obj_client, args.bucket_name)
         processed_files = get_processed_files(source_files, bucket_objects)
-        locked_processed_files = get_locked_processed_files(processed_files)
-        uploaded_processed_files = get_uploaded_processed_files(processed_files)
-        print(f"Locked files count: {len(locked_processed_files)}")
-        print(f"Uploaded files count: {len(uploaded_processed_files)}")
+        unlocked_processed_files = filter_locked_processed_files(processed_files)
+        not_uploaded_processed_files = filter_uploaded_processed_files(processed_files)
+
+        print("Processed files count:")
+        print(len(processed_files))
+        print()
+
+        print("Unlocked processed files count:")
+        print(len(unlocked_processed_files))
+        print()
+
+        print("Not uploaded processed files count:")
+        print(len(not_uploaded_processed_files))
+        print()
+
+        for file in unlocked_processed_files:
+            print(file)
 
 
 if __name__ == "__main__":
