@@ -1,0 +1,22 @@
+[project]
+name = "ffmpeg2obj"
+version = "0.0.1"
+readme = "README.md"
+dependencies = [
+  "boto3",
+  "types-boto3",
+  "typed-ffmpeg",
+]
+
+[project.optional-dependencies]
+test = ["pre-commit==3.3.3"]
+
+[project.scripts]
+ffmpeg2obj = "ffmpeg2obj.script:main"
+
+[tool.setuptools]
+packages = ["ffmpeg2obj"]
+py-modules = ["__init__"]
+
+[tool.isort]
+profile = "black"
