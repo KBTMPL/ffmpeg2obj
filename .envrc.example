@@ -1,0 +1,4 @@
+#!/bin/bash
+export aws_access_key_id="";
+export aws_secret_access_key="";
+export endpoint_url="";
