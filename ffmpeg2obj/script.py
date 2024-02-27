@@ -97,8 +97,9 @@ def get_source_files(
         for name in files:
             if ignored_subdir not in root and file_extension in name:
                 real_path = os.path.join(root, name)
-                object_name = obj_prefix + real_path.lstrip(source_dir)
-                source_files.update({object_name: real_path})
+                object_name = real_path.replace(source_dir, obj_prefix)
+                source_file_dict = {object_name: real_path}
+                source_files.update(source_file_dict)
     return source_files
 
 
