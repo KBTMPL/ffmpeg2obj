@@ -3,12 +3,9 @@
 
 class ProcessedFile:
     """Class to describe processed files"""
+
     def __init__(
-        self,
-        object_name: str,
-        real_path: str,
-        is_locked: bool,
-        is_uploaded: bool
+        self, object_name: str, real_path: str, is_locked: bool, is_uploaded: bool
     ) -> None:
         self.object_name = object_name
         self.real_path = real_path

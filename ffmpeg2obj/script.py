@@ -2,16 +2,17 @@
 Main executable for simple project that compresses blu ray movie library and stores it in obj
 """
 
-import os
 import argparse
+import os
 
 import boto3
+
+from ffmpeg2obj.helper import ProcessedFile
 
 # from threading import Thread
 # from queue import Queue
 # import ffmpeg
 
-from ffmpeg2obj.helper import ProcessedFile
 
 OBJ_ACCESS_KEY_ID = os.environ.get("aws_access_key_id", None)
 OBJ_SECRET_ACCESS_KEY = os.environ.get("aws_secret_access_key", None)
@@ -134,12 +135,16 @@ def get_processed_files(
     return processed_files
 
 
-def get_locked_processed_files(processed_files: list[ProcessedFile]) -> list[ProcessedFile]:
+def get_locked_processed_files(
+    processed_files: list[ProcessedFile],
+) -> list[ProcessedFile]:
     """Returns processed files that are locked"""
     return list(filter(lambda x: not x.is_locked, processed_files))
 
 
-def get_uploaded_processed_files(processed_files: list[ProcessedFile]) -> list[ProcessedFile]:
+def get_uploaded_processed_files(
+    processed_files: list[ProcessedFile],
+) -> list[ProcessedFile]:
     """Returns processed files that are uploaded"""
     return list(filter(lambda x: not x.is_uploaded, processed_files))
 
