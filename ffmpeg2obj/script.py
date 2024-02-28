@@ -106,25 +106,25 @@ def get_source_files(
     return source_files
 
 
-def get_obj_client(obj_config: dict) -> boto3.client.__class__:
+def get_obj_resource(obj_config: dict) -> boto3.client.__class__:
     """Returns object storage client"""
-    obj_client = boto3.client("s3", **obj_config)
-    return obj_client
+    obj_resource = boto3.resource("s3", **obj_config)
+    return obj_resource
 
 
-def selected_bucket_exist(obj_client: boto3.client.__class__, bucket_name: str) -> bool:
+def selected_bucket_exist(obj_resource: boto3.client.__class__, bucket_name: str) -> bool:
     """Checks whether selected bucket exists"""
-    buckets = obj_client.list_buckets()["Buckets"]
-    return bucket_name in list(bucket["Name"] for bucket in buckets)
+    buckets = obj_resource.buckets.all()
+    return bucket_name in list(bucket.name for bucket in buckets)
 
 
-def get_bucket_objects(obj_client: boto3.client.__class__, bucket_name: str):
+def get_bucket_files(obj_resource: boto3.client.__class__, bucket_name: str):
     """Returns objects from given object storage bucket"""
-    # TODO: Need to check why Top Secret is not getting returned
-    return list(
-        unicodedata.normalize("NFC", obj["Key"])
-        for obj in obj_client.list_objects(Bucket=bucket_name)["Contents"]
+    bucket_files = list(
+        unicodedata.normalize("NFC", file.key)
+        for file in obj_resource.Bucket(bucket_name).objects.all()
     )
+    return bucket_files
 
 
 def get_processed_files(
@@ -145,7 +145,8 @@ def filter_locked_processed_files(
     processed_files: list[ProcessedFile],
 ) -> list[ProcessedFile]:
     """Returns processed files that are not locked"""
-    return list(filter(lambda x: not x.is_locked, processed_files))
+    unlocked_processed_files = list(filter(lambda x: not x.is_locked, processed_files))
+    return unlocked_processed_files
 
 
 def filter_uploaded_processed_files(
@@ -153,7 +154,8 @@ def filter_uploaded_processed_files(
 ) -> list[ProcessedFile]:
     """Returns processed files that are not uploaded"""
     # TODO: consider adding and x.is_locked
-    return list(filter(lambda x: not x.is_uploaded, processed_files))
+    not_uploaded_processed_files = list(filter(lambda x: not x.is_uploaded, processed_files))
+    return not_uploaded_processed_files
 
 
 def main():
@@ -164,11 +166,11 @@ def main():
         args.source_dir, args.ignored_subdir, args.obj_prefix, args.file_extension
     )
 
-    obj_client = get_obj_client(OBJ_CONFIG)
+    obj_resource = get_obj_resource(OBJ_CONFIG)
 
-    if selected_bucket_exist(obj_client, args.bucket_name):
-        bucket_objects = get_bucket_objects(obj_client, args.bucket_name)
-        processed_files = get_processed_files(source_files, bucket_objects)
+    if selected_bucket_exist(obj_resource, args.bucket_name):
+        bucket_files = get_bucket_files(obj_resource, args.bucket_name)
+        processed_files = get_processed_files(source_files, bucket_files)
         unlocked_processed_files = filter_locked_processed_files(processed_files)
         not_uploaded_processed_files = filter_uploaded_processed_files(processed_files)
 
