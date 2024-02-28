@@ -4,6 +4,7 @@ Main executable for simple project that compresses blu ray movie library and sto
 
 import argparse
 import os
+import unicodedata
 
 import boto3
 
@@ -96,8 +97,10 @@ def get_source_files(
     for root, _, files in os.walk(source_dir):
         for name in files:
             if ignored_subdir not in root and file_extension in name:
-                real_path = os.path.join(root, name)
-                object_name = real_path.replace(source_dir, obj_prefix)
+                real_path = unicodedata.normalize("NFC", os.path.join(root, name))
+                object_name = unicodedata.normalize(
+                    "NFC", real_path.replace(source_dir, obj_prefix)
+                )
                 source_file_dict = {object_name: real_path}
                 source_files.update(source_file_dict)
     return source_files
@@ -118,7 +121,8 @@ def selected_bucket_exist(obj_client: boto3.client.__class__, bucket_name: str) 
 def get_bucket_objects(obj_client: boto3.client.__class__, bucket_name: str):
     """Returns objects from given object storage bucket"""
     return list(
-        obj["Key"] for obj in obj_client.list_objects(Bucket=bucket_name)["Contents"]
+        unicodedata.normalize("NFC", obj["Key"])
+        for obj in obj_client.list_objects(Bucket=bucket_name)["Contents"]
     )
 
 
@@ -178,9 +182,6 @@ def main():
         print("Not uploaded processed files count:")
         print(len(not_uploaded_processed_files))
         print()
-
-        for file in unlocked_processed_files:
-            print(file)
 
 
 if __name__ == "__main__":
