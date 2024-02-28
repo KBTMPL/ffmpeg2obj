@@ -31,9 +31,7 @@ class ProcessedFile:
         self.is_locked = file_exists(
             self.object_lock_file_name, obj_config, bucket_name
         )
-        self.is_uploaded = file_exists(
-            self.object_name, obj_config, bucket_name
-        )
+        self.is_uploaded = file_exists(self.object_name, obj_config, bucket_name)
 
 
 def file_exists(file: str, obj_config: dict, bucket_name: str) -> bool:

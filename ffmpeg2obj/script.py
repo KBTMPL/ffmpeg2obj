@@ -112,7 +112,9 @@ def get_obj_resource(obj_config: dict) -> boto3.resource.__class__:
     return obj_resource
 
 
-def selected_bucket_exist(obj_resource: boto3.resource.__class__, bucket_name: str) -> bool:
+def selected_bucket_exist(
+    obj_resource: boto3.resource.__class__, bucket_name: str
+) -> bool:
     """Checks whether selected bucket exists"""
     buckets = obj_resource.buckets.all()
     return bucket_name in list(bucket.name for bucket in buckets)
@@ -154,7 +156,9 @@ def filter_uploaded_processed_files(
 ) -> list[ProcessedFile]:
     """Returns processed files that are not uploaded"""
     # TODO: consider adding and x.is_locked
-    not_uploaded_processed_files = list(filter(lambda x: not x.is_uploaded, processed_files))
+    not_uploaded_processed_files = list(
+        filter(lambda x: not x.is_uploaded, processed_files)
+    )
     return not_uploaded_processed_files
 
 
@@ -174,16 +178,12 @@ def main():
         unlocked_processed_files = filter_locked_processed_files(processed_files)
         not_uploaded_processed_files = filter_uploaded_processed_files(processed_files)
 
-        print("Processed files count:")
-        print(len(processed_files))
-        print()
-
-        print("Unlocked processed files count:")
-        print(len(unlocked_processed_files))
-        print()
-
-        print("Not uploaded processed files count:")
-        print(len(not_uploaded_processed_files))
+        print("Processed files count: " + str(len(processed_files)))
+        print("Unlocked processed files count: " + str(len(unlocked_processed_files)))
+        print(
+            "Not uploaded processed files count: "
+            + str(len(not_uploaded_processed_files))
+        )
         print()
 
 
