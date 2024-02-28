@@ -120,6 +120,7 @@ def selected_bucket_exist(obj_client: boto3.client.__class__, bucket_name: str) 
 
 def get_bucket_objects(obj_client: boto3.client.__class__, bucket_name: str):
     """Returns objects from given object storage bucket"""
+    # TODO: Need to check why Top Secret is not getting returned
     return list(
         unicodedata.normalize("NFC", obj["Key"])
         for obj in obj_client.list_objects(Bucket=bucket_name)["Contents"]
@@ -151,7 +152,7 @@ def filter_uploaded_processed_files(
     processed_files: list[ProcessedFile],
 ) -> list[ProcessedFile]:
     """Returns processed files that are not uploaded"""
-    # consider adding and x.is_locked
+    # TODO: consider adding and x.is_locked
     return list(filter(lambda x: not x.is_uploaded, processed_files))
 
 
