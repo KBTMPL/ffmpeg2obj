@@ -28,13 +28,17 @@ class ProcessedFile:
 
     def update(self, obj_config: dict, bucket_name: str) -> None:
         """Updates ProcessedFile object instance attributes"""
-        self.is_locked = file_exists(
+        lock_file_exist = file_exists(
             self.object_lock_file_name, obj_config, bucket_name
         )
-        self.is_uploaded = file_exists(self.object_name, obj_config, bucket_name)
+        uploaded_file_exist = file_exists(self.object_name, obj_config, bucket_name)
+        if lock_file_exist is not None:
+            self.is_locked = lock_file_exist
+        if uploaded_file_exist is not None:
+            self.is_uploaded = uploaded_file_exist
 
 
-def file_exists(file: str, obj_config: dict, bucket_name: str) -> bool:
+def file_exists(file: str, obj_config: dict, bucket_name: str) -> bool | None:
     """Checks if given file exists in requested bucket"""
     obj_client = boto3.client("s3", **obj_config)
     try:
@@ -43,4 +47,4 @@ def file_exists(file: str, obj_config: dict, bucket_name: str) -> bool:
     except botocore.exceptions.ClientError as e:
         if e.response["Error"]["Code"] == "404":
             return False
-        return False
+        return None
