@@ -106,19 +106,19 @@ def get_source_files(
     return source_files
 
 
-def get_obj_resource(obj_config: dict) -> boto3.client.__class__:
+def get_obj_resource(obj_config: dict) -> boto3.resource.__class__:
     """Returns object storage client"""
     obj_resource = boto3.resource("s3", **obj_config)
     return obj_resource
 
 
-def selected_bucket_exist(obj_resource: boto3.client.__class__, bucket_name: str) -> bool:
+def selected_bucket_exist(obj_resource: boto3.resource.__class__, bucket_name: str) -> bool:
     """Checks whether selected bucket exists"""
     buckets = obj_resource.buckets.all()
     return bucket_name in list(bucket.name for bucket in buckets)
 
 
-def get_bucket_files(obj_resource: boto3.client.__class__, bucket_name: str):
+def get_bucket_files(obj_resource: boto3.resource.__class__, bucket_name: str):
     """Returns objects from given object storage bucket"""
     bucket_files = list(
         unicodedata.normalize("NFC", file.key)
