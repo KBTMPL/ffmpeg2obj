@@ -5,7 +5,7 @@ readme = "README.md"
 dependencies = [
   "boto3",
   "types-boto3",
-  "typed-ffmpeg",
+  "ffmpeg-python",
 ]
 
 [project.optional-dependencies]
