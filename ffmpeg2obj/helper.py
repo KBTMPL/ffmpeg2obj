@@ -87,11 +87,10 @@ class ProcessedFile:
             opts_dict.update({"crf": str(self.target_crf)})
         elif self.target_qp is not None:
             opts_dict.update({"qp": str(self.target_qp)})
-        lang_map = []
+        # TODO workaround ffmpeg-python ignore double map
         for lang in self.langs:
-            lang_map.append("0:m:language:" + lang)
-        lang_dict = {"map": ",".join(lang_map)}
-        opts_dict.update(lang_dict)
+            lang_dict = {"map": "0:m:language:" + lang}
+            opts_dict.update(lang_dict)
         if self.target_res != self.get_coded_res():
             scale_dict = {"vf": "scale=" + ":".join(str(x) for x in self.target_res)}
             opts_dict.update(scale_dict)
