@@ -86,6 +86,64 @@ def parse_args() -> argparse.Namespace:
         help="extension for the media files to be transcoded",
     )
 
+    parser.add_argument(
+        "-vc",
+        "--video-codec",
+        dest="video_codec",
+        type=str,
+        default="libx265",
+        help="video codec for transcoding of the media files",
+    )
+
+    parser.add_argument(
+        "--pix-fmt",
+        dest="pix_fmt",
+        type=str,
+        default="yuv420p10le",
+        help="pix fmt for transcoding of the media files",
+    )
+
+    parser.add_argument(
+        "-l",
+        "--languages",
+        dest="langs",
+        action=SplitArgs,
+        default="pol,eng",
+        help="selected languages transcoding of the media files",
+    )
+
+    parser.add_argument(
+        "--width",
+        dest="target_width",
+        type=int,
+        default=1920,
+        help="target width for the media files to be transcoded",
+    )
+
+    parser.add_argument(
+        "--height",
+        dest="target_height",
+        type=int,
+        default=1080,
+        help="target height for the media files to be transcoded",
+    )
+
+    qf_group = parser.add_mutually_exclusive_group(required=True)
+
+    qf_group.add_argument(
+        "--qp",
+        dest="target_qp",
+        type=int,
+        help="Quantization Parameter for the media files to be transcoded",
+    )
+
+    qf_group.add_argument(
+        "--crf",
+        dest="target_crf",
+        type=int,
+        help="Constant Rate Factor for the media files to be transcoded",
+    )
+
     return parser.parse_args()
 
 
