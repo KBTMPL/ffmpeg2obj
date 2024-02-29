@@ -2,6 +2,8 @@
 Main executable for simple project that compresses blu ray movie library and stores it in obj
 """
 
+# pylint: disable=too-many-arguments,too-many-locals
+
 import argparse
 import os
 import unicodedata
@@ -12,7 +14,6 @@ from ffmpeg2obj.helper import ProcessedFile
 
 # from threading import Thread
 # from queue import Queue
-# import ffmpeg
 
 
 OBJ_ACCESS_KEY_ID = os.environ.get("aws_access_key_id", None)
@@ -24,6 +25,14 @@ OBJ_CONFIG = {
     "aws_secret_access_key": OBJ_SECRET_ACCESS_KEY,
     "endpoint_url": OBJ_ENDPOINT_URL,
 }
+
+
+class SplitArgs(argparse.Action):
+    """Custom argparse action class borrowed from stackoverflow"""
+
+    # https://stackoverflow.com/questions/52132076/argparse-action-or-type-for-comma-separated-list
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values.split(","))
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,6 +57,15 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=".",
         help="source directory for media to be transcoded",
+    )
+
+    parser.add_argument(
+        "-t",
+        "--tmp-dir",
+        dest="tmp_dir",
+        type=str,
+        default="/tmp/",
+        help="temporary directory for media to be transcoded",
     )
 
     parser.add_argument(
@@ -188,7 +206,17 @@ def get_bucket_files(obj_resource: boto3.resource.__class__, bucket_name: str):
 
 
 def get_processed_files(
-    source_files: dict, bucket_objects: list
+    source_files: dict,
+    bucket_objects: list,
+    file_extension: str,
+    tmp_dir: str,
+    target_width: int,
+    target_height: int,
+    video_codec: str,
+    pix_fmt: str,
+    langs: list[str],
+    target_qp: int,
+    target_crf: int,
 ) -> list[ProcessedFile]:
     """Returns list of processed files based on collected data"""
     processed_files = []
@@ -196,7 +224,21 @@ def get_processed_files(
         is_uploaded = object_name in bucket_objects
         is_locked = object_name + ".lock" in bucket_objects
         processed_files.append(
-            ProcessedFile(object_name, real_path, is_locked, is_uploaded)
+            ProcessedFile(
+                object_name,
+                real_path,
+                is_locked,
+                is_uploaded,
+                file_extension,
+                tmp_dir,
+                target_width,
+                target_height,
+                video_codec,
+                pix_fmt,
+                langs,
+                target_qp,
+                target_crf,
+            )
         )
     return processed_files
 
@@ -232,7 +274,19 @@ def main():
 
     if selected_bucket_exist(obj_resource, args.bucket_name):
         bucket_files = get_bucket_files(obj_resource, args.bucket_name)
-        processed_files = get_processed_files(source_files, bucket_files)
+        processed_files = get_processed_files(
+            source_files,
+            bucket_files,
+            args.file_extension,
+            args.tmp_dir,
+            args.target_width,
+            args.target_height,
+            args.video_codec,
+            args.pix_fmt,
+            args.langs,
+            args.target_qp,
+            args.target_crf,
+        )
         unlocked_processed_files = filter_locked_processed_files(processed_files)
         not_uploaded_processed_files = filter_uploaded_processed_files(processed_files)
 
@@ -243,6 +297,9 @@ def main():
             + str(len(not_uploaded_processed_files))
         )
         print()
+
+        result = unlocked_processed_files[0].convert()
+        print(result)
 
 
 if __name__ == "__main__":
