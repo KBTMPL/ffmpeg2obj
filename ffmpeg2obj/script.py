@@ -50,6 +50,14 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--force-cleanup",
+        dest="force_cleanup",
+        action="store_true",
+        default=False,
+        help="cleans up even on upload failure",
+    )
+
+    parser.add_argument(
         "-s",
         "--source-dir",
         dest="source_dir",
@@ -244,7 +252,7 @@ def get_processed_files(
 
 
 def convert_and_upload(
-    queue: Queue, lock: Lock, obj_config: dict, bucket_name: str
+    queue: Queue, lock: Lock, obj_config: dict, bucket_name: str, force_cleanup: bool
 ) -> bool:
     """Converts and uploads media taken from queue"""
     processed_file: ProcessedFile = queue.get()
@@ -262,6 +270,8 @@ def convert_and_upload(
     if not processed_file.is_uploaded and os.path.isfile(processed_file.tmp_path):
         print("Starting upload for " + processed_file.object_name)
         upload_failed = not processed_file.upload(obj_config, bucket_name)
+        if not upload_failed or force_cleanup:
+            os.remove(processed_file.tmp_path)
     return not (conversion_failed or upload_failed)
 
 
@@ -296,7 +306,7 @@ def main():
         lock = Lock()
         job_processor = Thread(
             target=convert_and_upload,
-            args=(jobs, lock, OBJ_CONFIG, args.bucket_name),
+            args=(jobs, lock, OBJ_CONFIG, args.bucket_name, args.force_cleanup),
         )
         job_processor.start()
         job_processor.join()
