@@ -8,7 +8,8 @@ import argparse
 import os
 import unicodedata
 from queue import Queue
-from threading import Thread, Lock
+from threading import Lock
+from concurrent.futures import ThreadPoolExecutor
 import boto3
 import ffmpeg  # type: ignore[import-untyped]
 
@@ -305,12 +306,15 @@ def main():
         for file in processed_files:
             jobs.put(file)
         lock = Lock()
-        job_processor = Thread(
-            target=convert_and_upload,
-            args=(jobs, lock, OBJ_CONFIG, args.bucket_name, args.force_cleanup),
-        )
-        job_processor.start()
-        job_processor.join()
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            executor.submit(
+                convert_and_upload,
+                jobs,
+                lock,
+                OBJ_CONFIG,
+                args.bucket_name,
+                args.force_cleanup,
+            )
 
 
 if __name__ == "__main__":
