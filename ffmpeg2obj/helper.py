@@ -3,6 +3,7 @@
 # pylint: disable=too-few-public-methods, too-many-instance-attributes, too-many-arguments
 
 import hashlib
+from typing import Any
 import boto3
 import botocore
 import ffmpeg  # type: ignore[import-untyped]
@@ -75,7 +76,7 @@ class ProcessedFile:
     def convert(self) -> bool:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         # core opts
-        opts_dict = {
+        opts_dict: dict[str, Any] = {
             "c:v": self.video_codec,
             "pix_fmt": self.pix_fmt,
             "c:a": "copy",
@@ -90,7 +91,7 @@ class ProcessedFile:
         lang_map = []
         for lang in self.langs:
             lang_map.append("0:m:language:" + lang)
-        lang_dict = {"map": ",".join(lang_map)}
+        lang_dict = {"map": tuple(lang_map)}
         opts_dict.update(lang_dict)
         if self.target_res != self.get_coded_res():
             scale_dict = {"vf": "scale=" + ":".join(str(x) for x in self.target_res)}

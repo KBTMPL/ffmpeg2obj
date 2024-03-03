@@ -91,6 +91,7 @@ def parse_args() -> argparse.Namespace:
         "--bucket-name",
         dest="bucket_name",
         type=str,
+        required=True,
         default="",
         help="source directory for media to be transcoded",
     )
@@ -126,7 +127,7 @@ def parse_args() -> argparse.Namespace:
         "--languages",
         dest="langs",
         action=SplitArgs,
-        default="pol,eng",
+        default=["pol", "eng"],
         help="selected languages transcoding of the media files",
     )
 
