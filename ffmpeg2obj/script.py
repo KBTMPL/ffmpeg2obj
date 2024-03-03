@@ -252,6 +252,7 @@ def convert_and_upload(
     upload_failed = False
     if not processed_file.has_lockfile:
         with lock:
+            # TODO: improve overall ffmpeg-python error handling and maybe show status
             try:
                 print("Starting conversion for " + processed_file.object_name)
                 processed_file.convert()
