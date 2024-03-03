@@ -116,7 +116,7 @@ class ProcessedFile:
         """Uploads converted file from /tmp to object storage bucket"""
         obj_client = boto3.client("s3", **obj_config)
         try:
-            obj_client.upload_file(self.hashed_name, bucket_name, self.object_name)
+            obj_client.upload_file(self.tmp_path, bucket_name, self.object_name)
         except botocore.exceptions.ClientError as e:
             print(e)
             return False
