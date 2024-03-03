@@ -266,7 +266,8 @@ def convert_and_upload(
                 processed_file.convert()
             except ffmpeg.Error:
                 conversion_failed = True
-            processed_file.create_lock_file(obj_config, bucket_name)
+            else:
+                processed_file.create_lock_file(obj_config, bucket_name)
     if not processed_file.is_uploaded and os.path.isfile(processed_file.tmp_path):
         print("Starting upload for " + processed_file.object_name)
         upload_failed = not processed_file.upload(obj_config, bucket_name)
