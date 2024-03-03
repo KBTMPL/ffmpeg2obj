@@ -7,13 +7,12 @@ Main executable for simple project that compresses blu ray movie library and sto
 import argparse
 import os
 import unicodedata
-
+from queue import Queue
+from threading import Thread, Lock
 import boto3
+import ffmpeg  # type: ignore[import-untyped]
 
 from ffmpeg2obj.helper import ProcessedFile
-
-# from threading import Thread
-# from queue import Queue
 
 
 OBJ_ACCESS_KEY_ID = os.environ.get("aws_access_key_id", None)
@@ -150,14 +149,14 @@ def parse_args() -> argparse.Namespace:
     qf_group = parser.add_mutually_exclusive_group(required=True)
 
     qf_group.add_argument(
-        "--qp",
+        "-qp",
         dest="target_qp",
         type=int,
         help="Quantization Parameter for the media files to be transcoded",
     )
 
     qf_group.add_argument(
-        "--crf",
+        "-crf",
         dest="target_crf",
         type=int,
         help="Constant Rate Factor for the media files to be transcoded",
@@ -223,12 +222,12 @@ def get_processed_files(
     processed_files = []
     for object_name, real_path in source_files.items():
         is_uploaded = object_name in bucket_objects
-        is_locked = object_name + ".lock" in bucket_objects
+        has_lockfile = object_name + ".lock" in bucket_objects
         processed_files.append(
             ProcessedFile(
                 object_name,
                 real_path,
-                is_locked,
+                has_lockfile,
                 is_uploaded,
                 file_extension,
                 tmp_dir,
@@ -244,23 +243,25 @@ def get_processed_files(
     return processed_files
 
 
-def filter_locked_processed_files(
-    processed_files: list[ProcessedFile],
-) -> list[ProcessedFile]:
-    """Returns processed files that are not locked"""
-    unlocked_processed_files = list(filter(lambda x: not x.is_locked, processed_files))
-    return unlocked_processed_files
-
-
-def filter_uploaded_processed_files(
-    processed_files: list[ProcessedFile],
-) -> list[ProcessedFile]:
-    """Returns processed files that are not uploaded"""
-    # TODO: consider adding and x.is_locked
-    not_uploaded_processed_files = list(
-        filter(lambda x: not x.is_uploaded, processed_files)
-    )
-    return not_uploaded_processed_files
+def convert_and_upload(
+    queue: Queue, lock: Lock, obj_config: dict, bucket_name: str
+) -> bool:
+    """Converts and uploads media taken from queue"""
+    processed_file: ProcessedFile = queue.get()
+    conversion_failed = False
+    upload_failed = False
+    if not processed_file.has_lockfile:
+        with lock:
+            try:
+                print("Starting conversion for " + processed_file.object_name)
+                processed_file.convert()
+            except ffmpeg.Error:
+                conversion_failed = True
+            processed_file.create_lock_file(obj_config, bucket_name)
+    if not processed_file.is_uploaded and os.path.isfile(processed_file.tmp_path):
+        print("Starting upload for " + processed_file.object_name)
+        upload_failed = not processed_file.upload(obj_config, bucket_name)
+    return not (conversion_failed or upload_failed)
 
 
 def main():
@@ -288,19 +289,16 @@ def main():
             args.target_qp,
             args.target_crf,
         )
-        unlocked_processed_files = filter_locked_processed_files(processed_files)
-        not_uploaded_processed_files = filter_uploaded_processed_files(processed_files)
-
-        print("Processed files count: " + str(len(processed_files)))
-        print("Unlocked processed files count: " + str(len(unlocked_processed_files)))
-        print(
-            "Not uploaded processed files count: "
-            + str(len(not_uploaded_processed_files))
+        jobs = Queue()
+        for file in processed_files:
+            jobs.put(file)
+        lock = Lock()
+        job_processor = Thread(
+            target=convert_and_upload,
+            args=(jobs, lock, OBJ_CONFIG, args.bucket_name),
         )
-        print()
-
-        result = unlocked_processed_files[0].convert()
-        print(result)
+        job_processor.start()
+        job_processor.join()
 
 
 if __name__ == "__main__":

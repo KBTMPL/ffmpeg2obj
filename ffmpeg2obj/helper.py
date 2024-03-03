@@ -16,7 +16,7 @@ class ProcessedFile:
         self,
         object_name: str,
         real_path: str,
-        is_locked: bool,
+        has_lockfile: bool,
         is_uploaded: bool,
         file_extension: str,
         tmp_dir: str,
@@ -30,7 +30,7 @@ class ProcessedFile:
     ) -> None:
         self.object_name = object_name
         self.real_path = real_path
-        self.is_locked = is_locked
+        self.has_lockfile = has_lockfile
         self.is_uploaded = is_uploaded
         self.file_extension = file_extension
         self.tmp_dir = tmp_dir if tmp_dir.endswith("/") else tmp_dir + "/"
@@ -48,7 +48,7 @@ class ProcessedFile:
         out = []
         out += ["object_name: " + self.object_name]
         out += ["real_path: " + self.real_path]
-        out += ["is_locked: " + str(self.is_locked)]
+        out += ["has_lockfile: " + str(self.has_lockfile)]
         out += ["is_uploaded: " + str(self.is_uploaded)]
         out += ["hashed_name: " + self.hashed_name]
         return "\n".join(out)
@@ -60,7 +60,7 @@ class ProcessedFile:
         )
         uploaded_file_exist = file_exists(self.object_name, obj_config, bucket_name)
         if lock_file_exist is not None:
-            self.is_locked = lock_file_exist
+            self.has_lockfile = lock_file_exist
         if uploaded_file_exist is not None:
             self.is_uploaded = uploaded_file_exist
 
@@ -73,7 +73,7 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def convert(self) -> bool:
+    def convert(self) -> tuple[Any, Any]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         # core opts
         opts_dict: dict[str, Any] = {
@@ -98,8 +98,8 @@ class ProcessedFile:
             opts_dict.update(scale_dict)
         stream = ffmpeg.input(self.real_path)
         stream = ffmpeg.output(stream, self.tmp_path, **opts_dict)
-        output = ffmpeg.run(stream)
-        return output
+        out, err = ffmpeg.run(stream)
+        return out, err
 
     def create_lock_file(self, obj_config: dict, bucket_name: str) -> bool:
         """Creates empty lock file on object storage bucket"""
@@ -109,7 +109,8 @@ class ProcessedFile:
         except botocore.exceptions.ClientError as e:
             print(e)
             return False
-        return True
+        self.has_lockfile = True
+        return self.has_lockfile
 
     def upload(self, obj_config: dict, bucket_name: str) -> bool:
         """Uploads converted file from /tmp to object storage bucket"""
@@ -119,7 +120,8 @@ class ProcessedFile:
         except botocore.exceptions.ClientError as e:
             print(e)
             return False
-        return True
+        self.is_uploaded = True
+        return self.is_uploaded
 
 
 def file_exists(file: str, obj_config: dict, bucket_name: str) -> bool | None:
