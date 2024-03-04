@@ -9,7 +9,7 @@ import os
 import unicodedata
 from queue import Queue
 from threading import Lock
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 import boto3
 import ffmpeg  # type: ignore[import-untyped]
 
@@ -307,14 +307,18 @@ def main():
             jobs.put(file)
         lock = Lock()
         with ThreadPoolExecutor(max_workers=3) as executor:
-            executor.submit(
-                convert_and_upload,
-                jobs,
-                lock,
-                OBJ_CONFIG,
-                args.bucket_name,
-                args.force_cleanup,
-            )
+            futures = [
+                executor.submit(
+                    convert_and_upload,
+                    jobs,
+                    lock,
+                    OBJ_CONFIG,
+                    args.bucket_name,
+                    args.force_cleanup,
+                )
+                for _ in range(len(processed_files))
+            ]
+        wait(futures)
 
 
 if __name__ == "__main__":
