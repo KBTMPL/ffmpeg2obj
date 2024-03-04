@@ -51,6 +51,14 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--noop",
+        dest="noop",
+        action="store_true",
+        default=False,
+        help="script executes but takes no action",
+    )
+
+    parser.add_argument(
         "--force-cleanup",
         dest="force_cleanup",
         action="store_true",
@@ -253,7 +261,7 @@ def get_processed_files(
 
 
 def convert_and_upload(
-    queue: Queue, lock: Lock, obj_config: dict, bucket_name: str, force_cleanup: bool
+    queue: Queue, lock: Lock, obj_config: dict, bucket_name: str, force_cleanup: bool, noop: bool
 ) -> bool:
     """Converts and uploads media taken from queue"""
     processed_file: ProcessedFile = queue.get()
@@ -261,19 +269,25 @@ def convert_and_upload(
     upload_failed = False
     if not processed_file.has_lockfile:
         with lock:
-            # TODO: improve overall ffmpeg-python error handling and maybe show status
-            try:
-                print("Starting conversion for " + processed_file.object_name)
-                processed_file.convert()
-            except ffmpeg.Error:
-                conversion_failed = True
+            if not noop:
+                # TODO: improve overall ffmpeg-python error handling and maybe show status
+                try:
+                    print("Starting conversion for " + processed_file.object_name)
+                    processed_file.convert()
+                except ffmpeg.Error:
+                    conversion_failed = True
+                else:
+                    processed_file.create_lock_file(obj_config, bucket_name)
             else:
-                processed_file.create_lock_file(obj_config, bucket_name)
+                print("Would have start conversion for " + processed_file.object_name)
     if not processed_file.is_uploaded and os.path.isfile(processed_file.tmp_path):
-        print("Starting upload for " + processed_file.object_name)
-        upload_failed = not processed_file.upload(obj_config, bucket_name)
-        if not upload_failed or force_cleanup:
-            os.remove(processed_file.tmp_path)
+        if not noop:
+            print("Starting upload for " + processed_file.object_name)
+            upload_failed = not processed_file.upload(obj_config, bucket_name)
+            if not upload_failed or force_cleanup:
+                os.remove(processed_file.tmp_path)
+        else:
+            print("Would have start upload for " + processed_file.object_name)
     return not (conversion_failed or upload_failed)
 
 
@@ -288,6 +302,8 @@ def main():
     obj_resource = get_obj_resource(OBJ_CONFIG)
 
     if selected_bucket_exist(obj_resource, args.bucket_name):
+        if args.noop:
+            print("noop enabled, will not take any actions")
         bucket_files = get_bucket_files(obj_resource, args.bucket_name)
         processed_files = get_processed_files(
             source_files,
@@ -315,6 +331,7 @@ def main():
                     OBJ_CONFIG,
                     args.bucket_name,
                     args.force_cleanup,
+                    args.noop,
                 )
                 for _ in range(len(processed_files))
             ]
