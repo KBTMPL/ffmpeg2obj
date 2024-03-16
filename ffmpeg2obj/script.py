@@ -156,6 +156,14 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--resize",
+        dest="resize",
+        action="store_true",
+        default=False,
+        help="scale input files to height x width",
+    )
+
+    parser.add_argument(
         "--height",
         dest="target_height",
         type=int,
@@ -299,6 +307,7 @@ def main():
             print("noop enabled, will not take any actions")
         bucket_files = get_bucket_files(obj_resource, args.bucket_name)
         processing_params = ProcessingParams(
+            args.resize,
             args.target_width,
             args.target_width,
             args.video_codec,

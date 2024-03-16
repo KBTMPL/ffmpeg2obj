@@ -14,6 +14,7 @@ class ProcessingParams:
 
     def __init__(
         self,
+        resize: bool,
         target_width: int,
         target_height: int,
         video_codec: str,
@@ -22,6 +23,7 @@ class ProcessingParams:
         target_qp: int,
         target_crf: int,
     ) -> None:
+        self.resize = resize
         self.video_codec = video_codec
         self.pix_fmt = pix_fmt
         self.langs = langs
@@ -103,7 +105,10 @@ class ProcessedFile:
             lang_map.append("0:m:language:" + lang)
         lang_dict = {"map": tuple(lang_map)}
         opts_dict.update(lang_dict)
-        if self.processing_params.target_res != self.get_coded_res():
+        if (
+            self.processing_params.target_res != self.get_coded_res()
+            and self.processing_params.resize
+        ):
             scale_dict = {
                 "vf": "scale="
                 + ":".join(str(x) for x in self.processing_params.target_res)
