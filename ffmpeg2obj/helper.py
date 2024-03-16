@@ -9,17 +9,12 @@ import botocore
 import ffmpeg  # type: ignore[import-untyped]
 
 
-class ProcessedFile:
-    """Class to describe processed files"""
+class ProcessingParams:
+    """Class to describe processing parameres"""
 
     def __init__(
         self,
-        object_name: str,
-        real_path: str,
-        has_lockfile: bool,
-        is_uploaded: bool,
-        file_extension: str,
-        tmp_dir: str,
+        resize: bool,
         target_width: int,
         target_height: int,
         video_codec: str,
@@ -28,18 +23,35 @@ class ProcessedFile:
         target_qp: int,
         target_crf: int,
     ) -> None:
-        self.object_name = object_name
-        self.real_path = real_path
-        self.has_lockfile = has_lockfile
-        self.is_uploaded = is_uploaded
-        self.file_extension = file_extension
-        self.tmp_dir = tmp_dir if tmp_dir.endswith("/") else tmp_dir + "/"
+        self.resize = resize
         self.video_codec = video_codec
         self.pix_fmt = pix_fmt
         self.langs = langs
         self.target_qp = target_qp
         self.target_crf = target_crf
         self.target_res: list[int] = [target_width, target_height]
+
+
+class ProcessedFile:
+    """Class to describe processed files"""
+
+    def __init__(
+        self,
+        object_name: str,
+        real_path: str,
+        file_extension: str,
+        tmp_dir: str,
+        has_lockfile: bool,
+        is_uploaded: bool,
+        processing_params: ProcessingParams,
+    ) -> None:
+        self.object_name = object_name
+        self.real_path = real_path
+        self.file_extension = file_extension
+        self.tmp_dir = tmp_dir if tmp_dir.endswith("/") else tmp_dir + "/"
+        self.has_lockfile = has_lockfile
+        self.is_uploaded = is_uploaded
+        self.processing_params = processing_params
         self.hashed_name: str = hash_string(self.object_name)
         self.object_lock_file_name: str = self.object_name + ".lock"
         self.tmp_path: str = self.tmp_dir + self.hashed_name + "." + self.file_extension
@@ -77,24 +89,30 @@ class ProcessedFile:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         # core opts
         opts_dict: dict[str, Any] = {
-            "c:v": self.video_codec,
-            "pix_fmt": self.pix_fmt,
+            "c:v": self.processing_params.video_codec,
+            "pix_fmt": self.processing_params.pix_fmt,
             "c:a": "copy",
             "c:s": "copy",
             "v": "quiet",
         }
         # conditional opts
-        if self.target_crf is not None:
-            opts_dict.update({"crf": str(self.target_crf)})
-        elif self.target_qp is not None:
-            opts_dict.update({"qp": str(self.target_qp)})
+        if self.processing_params.target_crf is not None:
+            opts_dict.update({"crf": str(self.processing_params.target_crf)})
+        elif self.processing_params.target_qp is not None:
+            opts_dict.update({"qp": str(self.processing_params.target_qp)})
         lang_map = []
-        for lang in self.langs:
+        for lang in self.processing_params.langs:
             lang_map.append("0:m:language:" + lang)
         lang_dict = {"map": tuple(lang_map)}
         opts_dict.update(lang_dict)
-        if self.target_res != self.get_coded_res():
-            scale_dict = {"vf": "scale=" + ":".join(str(x) for x in self.target_res)}
+        if (
+            self.processing_params.target_res != self.get_coded_res()
+            and self.processing_params.resize
+        ):
+            scale_dict = {
+                "vf": "scale="
+                + ":".join(str(x) for x in self.processing_params.target_res)
+            }
             opts_dict.update(scale_dict)
         stream = ffmpeg.input(self.real_path)
         stream = ffmpeg.output(stream, self.tmp_path, **opts_dict)

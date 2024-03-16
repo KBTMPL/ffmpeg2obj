@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 import boto3
 import ffmpeg  # type: ignore[import-untyped]
 
-from ffmpeg2obj.helper import ProcessedFile
+from ffmpeg2obj.helper import ProcessedFile, ProcessingParams
 
 
 OBJ_ACCESS_KEY_ID = os.environ.get("aws_access_key_id", None)
@@ -156,6 +156,14 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--resize",
+        dest="resize",
+        action="store_true",
+        default=False,
+        help="scale input files to height x width",
+    )
+
+    parser.add_argument(
         "--height",
         dest="target_height",
         type=int,
@@ -227,13 +235,7 @@ def get_processed_files(
     bucket_objects: list,
     file_extension: str,
     tmp_dir: str,
-    target_width: int,
-    target_height: int,
-    video_codec: str,
-    pix_fmt: str,
-    langs: list[str],
-    target_qp: int,
-    target_crf: int,
+    processing_params: ProcessingParams,
 ) -> list[ProcessedFile]:
     """Returns list of processed files based on collected data"""
     processed_files = []
@@ -244,24 +246,23 @@ def get_processed_files(
             ProcessedFile(
                 object_name,
                 real_path,
-                has_lockfile,
-                is_uploaded,
                 file_extension,
                 tmp_dir,
-                target_width,
-                target_height,
-                video_codec,
-                pix_fmt,
-                langs,
-                target_qp,
-                target_crf,
+                has_lockfile,
+                is_uploaded,
+                processing_params,
             )
         )
     return processed_files
 
 
 def convert_and_upload(
-    queue: Queue, lock: Lock, obj_config: dict, bucket_name: str, force_cleanup: bool, noop: bool
+    queue: Queue,
+    lock: Lock,
+    obj_config: dict,
+    bucket_name: str,
+    force_cleanup: bool,
+    noop: bool,
 ) -> bool:
     """Converts and uploads media taken from queue"""
     processed_file: ProcessedFile = queue.get()
@@ -305,18 +306,22 @@ def main():
         if args.noop:
             print("noop enabled, will not take any actions")
         bucket_files = get_bucket_files(obj_resource, args.bucket_name)
-        processed_files = get_processed_files(
-            source_files,
-            bucket_files,
-            args.file_extension,
-            args.tmp_dir,
+        processing_params = ProcessingParams(
+            args.resize,
             args.target_width,
-            args.target_height,
+            args.target_width,
             args.video_codec,
             args.pix_fmt,
             args.langs,
             args.target_qp,
             args.target_crf,
+        )
+        processed_files = get_processed_files(
+            source_files,
+            bucket_files,
+            args.file_extension,
+            args.tmp_dir,
+            processing_params,
         )
         jobs = Queue()
         for file in processed_files:
