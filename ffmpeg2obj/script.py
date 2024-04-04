@@ -11,6 +11,7 @@ from queue import Queue
 from threading import Lock
 from concurrent.futures import ThreadPoolExecutor, wait
 import boto3
+import botocore
 import ffmpeg  # type: ignore[import-untyped]
 
 from ffmpeg2obj.helper import ProcessedFile, ProcessingParams
@@ -217,8 +218,13 @@ def selected_bucket_exist(
     obj_resource: boto3.resource.__class__, bucket_name: str
 ) -> bool:
     """Checks whether selected bucket exists"""
-    buckets = obj_resource.buckets.all()
-    return bucket_name in list(bucket.name for bucket in buckets)
+    try:
+        buckets = obj_resource.buckets.all()
+        bucket_exists = bucket_name in list(bucket.name for bucket in buckets)
+    except botocore.exceptions.ClientError as e:
+        print(f"Exception occured: {e}")
+        bucket_exists = False
+    return bucket_exists
 
 
 def get_bucket_files(obj_resource: boto3.resource.__class__, bucket_name: str):
