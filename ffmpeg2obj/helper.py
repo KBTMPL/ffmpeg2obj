@@ -2,6 +2,7 @@
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes, too-many-arguments
 
+import json
 import hashlib
 from typing import Any
 import boto3
@@ -30,6 +31,10 @@ class ProcessingParams:
         self.target_qp = target_qp
         self.target_crf = target_crf
         self.target_res: list[int] = [target_width, target_height]
+
+    def to_json_str(self):
+        """Returns JSON representation of ProcessingParams object"""
+        return json.dumps(self, default=vars, sort_keys=True, indent=4)
 
 
 class ProcessedFile:
@@ -123,7 +128,11 @@ class ProcessedFile:
         """Creates empty lock file on object storage bucket"""
         obj_client = boto3.client("s3", **obj_config)
         try:
-            obj_client.put_object(Bucket=bucket_name, Key=self.object_lock_file_name)
+            obj_client.put_object(
+                Bucket=bucket_name,
+                Key=self.object_lock_file_name,
+                Body=self.processing_params.to_json_str().encode("UTF-8"),
+            )
         except botocore.exceptions.ClientError as e:
             print(e)
             return False
