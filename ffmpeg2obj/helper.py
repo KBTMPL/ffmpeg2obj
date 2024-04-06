@@ -5,6 +5,8 @@
 import json
 import hashlib
 from typing import Any
+import time
+from datetime import timedelta
 import boto3
 import botocore
 import ffmpeg  # type: ignore[import-untyped]
@@ -90,7 +92,7 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def convert(self) -> tuple[Any, Any]:
+    def convert(self) -> tuple[bytes, bytes, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         # core opts
         opts_dict: dict[str, Any] = {
@@ -121,8 +123,11 @@ class ProcessedFile:
             opts_dict.update(scale_dict)
         stream = ffmpeg.input(self.real_path)
         stream = ffmpeg.output(stream, self.tmp_path, **opts_dict)
+        start_time = time.monotonic()
         out, err = ffmpeg.run(stream)
-        return out, err
+        end_time = time.monotonic()
+        duration = timedelta(seconds=end_time - start_time)
+        return out, err, duration
 
     def create_lock_file(self, obj_config: dict, bucket_name: str) -> bool:
         """Creates empty lock file on object storage bucket"""
@@ -137,18 +142,22 @@ class ProcessedFile:
             print(e)
             return False
         self.has_lockfile = True
-        return self.has_lockfile
+        return True
 
-    def upload(self, obj_config: dict, bucket_name: str) -> bool:
+    def upload(self, obj_config: dict, bucket_name: str) -> tuple[bool, timedelta]:
         """Uploads converted file from /tmp to object storage bucket"""
         obj_client = boto3.client("s3", **obj_config)
+        start_time = time.monotonic()
         try:
             obj_client.upload_file(self.tmp_path, bucket_name, self.object_name)
         except botocore.exceptions.ClientError as e:
             print(e)
-            return False
-        self.is_uploaded = True
-        return self.is_uploaded
+        else:
+            self.is_uploaded = True
+        finally:
+            end_time = time.monotonic()
+            duration = timedelta(seconds=end_time - start_time)
+        return self.is_uploaded, duration
 
 
 def file_exists(file: str, obj_config: dict, bucket_name: str) -> bool | None:

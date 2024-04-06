@@ -269,33 +269,39 @@ def convert_and_upload(
     bucket_name: str,
     force_cleanup: bool,
     noop: bool,
+    verbose: bool,
 ) -> bool:
     """Converts and uploads media taken from queue"""
     processed_file: ProcessedFile = queue.get()
-    conversion_failed = False
-    upload_failed = False
+    convert_succeded = False
+    upload_succeded = False
     if not processed_file.has_lockfile:
         with lock:
             if not noop:
                 # TODO: improve overall ffmpeg-python error handling and maybe show status
                 try:
                     print("Starting conversion for " + processed_file.object_name)
-                    processed_file.convert()
-                except ffmpeg.Error:
-                    conversion_failed = True
+                    _, _, convert_duration = processed_file.convert()
+                    if verbose:
+                        print(f"Conversion took: {convert_duration}")
+                except ffmpeg.Error as e:
+                    print(f"Caught occured: {e}")
                 else:
+                    convert_succeded = True
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
     if not processed_file.is_uploaded and os.path.isfile(processed_file.tmp_path):
         if not noop:
             print("Starting upload for " + processed_file.object_name)
-            upload_failed = not processed_file.upload(obj_config, bucket_name)
-            if not upload_failed or force_cleanup:
+            upload_succeded, upload_duration = processed_file.upload(obj_config, bucket_name)
+            if verbose:
+                print(f"Upload took: {upload_duration}")
+            if upload_succeded or force_cleanup:
                 os.remove(processed_file.tmp_path)
         else:
             print("Would have start upload for " + processed_file.object_name)
-    return not (conversion_failed or upload_failed)
+    return convert_succeded and upload_succeded
 
 
 def main():
@@ -343,6 +349,7 @@ def main():
                     args.bucket_name,
                     args.force_cleanup,
                     args.noop,
+                    args.verbose,
                 )
                 for _ in range(len(processed_files))
             ]
