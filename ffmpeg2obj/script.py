@@ -316,7 +316,7 @@ def main():
         processing_params = ProcessingParams(
             args.resize,
             args.target_width,
-            args.target_width,
+            args.target_height,
             args.video_codec,
             args.pix_fmt,
             args.langs,
