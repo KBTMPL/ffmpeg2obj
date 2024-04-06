@@ -92,8 +92,9 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def convert(self) -> tuple[bytes, bytes, timedelta]:
+    def convert(self) -> tuple[bytes, bytes, bool, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
+        convert_succeded = False
         # core opts
         opts_dict: dict[str, Any] = {
             "c:v": self.processing_params.video_codec,
@@ -124,10 +125,15 @@ class ProcessedFile:
         stream = ffmpeg.input(self.real_path)
         stream = ffmpeg.output(stream, self.tmp_path, **opts_dict)
         start_time = time.monotonic()
-        out, err = ffmpeg.run(stream)
+        try:
+            out, err = ffmpeg.run(stream)
+        except ffmpeg.Error as e:
+            print(f"Caught occured: {e}")
+        else:
+            convert_succeded = True
         end_time = time.monotonic()
         duration = timedelta(seconds=end_time - start_time)
-        return out, err, duration
+        return out, err, convert_succeded, duration
 
     def create_lock_file(self, obj_config: dict, bucket_name: str) -> bool:
         """Creates empty lock file on object storage bucket"""

@@ -12,7 +12,6 @@ from threading import Lock
 from concurrent.futures import ThreadPoolExecutor, wait
 import boto3
 import botocore
-import ffmpeg  # type: ignore[import-untyped]
 
 from ffmpeg2obj.helper import ProcessedFile, ProcessingParams
 
@@ -279,15 +278,11 @@ def convert_and_upload(
         with lock:
             if not noop:
                 # TODO: improve overall ffmpeg-python error handling and maybe show status
-                try:
-                    print("Starting conversion for " + processed_file.object_name)
-                    _, _, convert_duration = processed_file.convert()
-                    if verbose:
-                        print(f"Conversion took: {convert_duration}")
-                except ffmpeg.Error as e:
-                    print(f"Caught occured: {e}")
-                else:
-                    convert_succeded = True
+                print("Starting conversion for " + processed_file.object_name)
+                _, _, convert_succeded, convert_duration = processed_file.convert()
+                if verbose:
+                    print(f"Conversion took: {convert_duration}")
+                if convert_succeded:
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
