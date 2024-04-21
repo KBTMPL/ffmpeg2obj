@@ -5,6 +5,8 @@
 import json
 import hashlib
 from typing import Any
+import time
+from datetime import timedelta
 import boto3
 import botocore
 import ffmpeg  # type: ignore[import-untyped]
@@ -45,7 +47,7 @@ class ProcessedFile:
         object_name: str,
         real_path: str,
         file_extension: str,
-        tmp_dir: str,
+        dst_dir: str,
         has_lockfile: bool,
         is_uploaded: bool,
         processing_params: ProcessingParams,
@@ -53,13 +55,14 @@ class ProcessedFile:
         self.object_name = object_name
         self.real_path = real_path
         self.file_extension = file_extension
-        self.tmp_dir = tmp_dir if tmp_dir.endswith("/") else tmp_dir + "/"
+        self.dst_dir = dst_dir if dst_dir.endswith("/") else dst_dir + "/"
         self.has_lockfile = has_lockfile
         self.is_uploaded = is_uploaded
         self.processing_params = processing_params
         self.hashed_name: str = hash_string(self.object_name)
         self.object_lock_file_name: str = self.object_name + ".lock"
-        self.tmp_path: str = self.tmp_dir + self.hashed_name + "." + self.file_extension
+        self.dst_path: str = self.dst_dir + self.object_name + "." + self.file_extension
+        self.dst_hashed_path: str = self.dst_dir + self.hashed_name + "." + self.file_extension
 
     def __str__(self) -> str:
         out = []
@@ -72,10 +75,10 @@ class ProcessedFile:
 
     def update(self, obj_config: dict, bucket_name: str) -> None:
         """Updates ProcessedFile object instance attributes"""
-        lock_file_exist = file_exists(
+        lock_file_exist = file_exists_in_bucket(
             self.object_lock_file_name, obj_config, bucket_name
         )
-        uploaded_file_exist = file_exists(self.object_name, obj_config, bucket_name)
+        uploaded_file_exist = file_exists_in_bucket(self.object_name, obj_config, bucket_name)
         if lock_file_exist is not None:
             self.has_lockfile = lock_file_exist
         if uploaded_file_exist is not None:
@@ -90,8 +93,9 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def convert(self) -> tuple[Any, Any]:
+    def convert(self) -> tuple[bytes, bytes, bool, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
+        convert_succeded = False
         # core opts
         opts_dict: dict[str, Any] = {
             "c:v": self.processing_params.video_codec,
@@ -120,9 +124,17 @@ class ProcessedFile:
             }
             opts_dict.update(scale_dict)
         stream = ffmpeg.input(self.real_path)
-        stream = ffmpeg.output(stream, self.tmp_path, **opts_dict)
-        out, err = ffmpeg.run(stream)
-        return out, err
+        stream = ffmpeg.output(stream, self.dst_hashed_path, **opts_dict)
+        start_time = time.monotonic()
+        try:
+            std_out, std_err = ffmpeg.run(stream)
+        except ffmpeg.Error as e:
+            print(f"Caught occured: {e}")
+        else:
+            convert_succeded = True
+        end_time = time.monotonic()
+        duration = timedelta(seconds=end_time - start_time)
+        return std_out, std_err, convert_succeded, duration
 
     def create_lock_file(self, obj_config: dict, bucket_name: str) -> bool:
         """Creates empty lock file on object storage bucket"""
@@ -137,21 +149,25 @@ class ProcessedFile:
             print(e)
             return False
         self.has_lockfile = True
-        return self.has_lockfile
+        return True
 
-    def upload(self, obj_config: dict, bucket_name: str) -> bool:
+    def upload(self, obj_config: dict, bucket_name: str) -> tuple[bool, timedelta]:
         """Uploads converted file from /tmp to object storage bucket"""
         obj_client = boto3.client("s3", **obj_config)
+        start_time = time.monotonic()
         try:
-            obj_client.upload_file(self.tmp_path, bucket_name, self.object_name)
+            obj_client.upload_file(self.dst_hashed_path, bucket_name, self.object_name)
         except botocore.exceptions.ClientError as e:
             print(e)
-            return False
-        self.is_uploaded = True
-        return self.is_uploaded
+        else:
+            self.is_uploaded = True
+        finally:
+            end_time = time.monotonic()
+            duration = timedelta(seconds=end_time - start_time)
+        return self.is_uploaded, duration
 
 
-def file_exists(file: str, obj_config: dict, bucket_name: str) -> bool | None:
+def file_exists_in_bucket(file: str, obj_config: dict, bucket_name: str) -> bool | None:
     """Checks if given file exists in requested bucket"""
     obj_client = boto3.client("s3", **obj_config)
     try:

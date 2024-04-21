@@ -6,13 +6,14 @@ Main executable for simple project that compresses blu ray movie library and sto
 
 import argparse
 import os
+import sys
+import shutil
 import unicodedata
 from queue import Queue
 from threading import Lock
 from concurrent.futures import ThreadPoolExecutor, wait
 import boto3
 import botocore
-import ffmpeg  # type: ignore[import-untyped]
 
 from ffmpeg2obj.helper import ProcessedFile, ProcessingParams
 
@@ -68,18 +69,26 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--disable-upload",
+        dest="upload_enabled",
+        action="store_false",
+        default=True,
+        help="disables default upload to object storage and stores files locally",
+    )
+
+    parser.add_argument(
         "-s",
         "--source-dir",
-        dest="source_dir",
+        dest="src_dir",
         type=str,
         default=".",
         help="source directory for media to be transcoded",
     )
 
     parser.add_argument(
-        "-t",
-        "--tmp-dir",
-        dest="tmp_dir",
+        "-d",
+        "--destination-dir",
+        dest="dst_dir",
         type=str,
         default="/tmp/",
         help="temporary directory for media to be transcoded",
@@ -192,16 +201,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_source_files(
-    source_dir: str, ignored_subdir: str, obj_prefix: str, file_extension: str
+    src_dir: str, ignored_subdir: str, obj_prefix: str, file_extension: str
 ) -> dict[str, str]:
     """Looks for source files"""
     source_files = {}
-    for root, _, files in os.walk(source_dir):
+    for root, _, files in os.walk(src_dir):
         for name in files:
             if ignored_subdir not in root and file_extension in name:
                 real_path = unicodedata.normalize("NFC", os.path.join(root, name))
                 object_name = unicodedata.normalize(
-                    "NFC", real_path.replace(source_dir, obj_prefix)
+                    "NFC", real_path.replace(src_dir, obj_prefix)
                 )
                 source_file_dict = {object_name: real_path}
                 source_files.update(source_file_dict)
@@ -240,7 +249,7 @@ def get_processed_files(
     source_files: dict,
     bucket_objects: list,
     file_extension: str,
-    tmp_dir: str,
+    dst_dir: str,
     processing_params: ProcessingParams,
 ) -> list[ProcessedFile]:
     """Returns list of processed files based on collected data"""
@@ -253,7 +262,7 @@ def get_processed_files(
                 object_name,
                 real_path,
                 file_extension,
-                tmp_dir,
+                dst_dir,
                 has_lockfile,
                 is_uploaded,
                 processing_params,
@@ -269,41 +278,83 @@ def convert_and_upload(
     bucket_name: str,
     force_cleanup: bool,
     noop: bool,
+    verbose: bool,
+    upload_enabled: bool,
 ) -> bool:
     """Converts and uploads media taken from queue"""
     processed_file: ProcessedFile = queue.get()
-    conversion_failed = False
-    upload_failed = False
+    convert_succeded = False
+    upload_succeded = False
     if not processed_file.has_lockfile:
         with lock:
             if not noop:
                 # TODO: improve overall ffmpeg-python error handling and maybe show status
-                try:
-                    print("Starting conversion for " + processed_file.object_name)
-                    processed_file.convert()
-                except ffmpeg.Error:
-                    conversion_failed = True
-                else:
+                print("Starting conversion for " + processed_file.object_name)
+                std_out, std_err, convert_succeded, convert_duration = processed_file.convert()
+                if verbose:
+                    print(f"Conversion of file {processed_file.object_name}"
+                          f" took: {convert_duration}\n")
+                    print("\nffmpeg standard output:")
+                    print(std_out)
+                    print("\nffmpeg standard error:")
+                    print(std_err)
+                if convert_succeded:
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
-    if not processed_file.is_uploaded and os.path.isfile(processed_file.tmp_path):
-        if not noop:
-            print("Starting upload for " + processed_file.object_name)
-            upload_failed = not processed_file.upload(obj_config, bucket_name)
-            if not upload_failed or force_cleanup:
-                os.remove(processed_file.tmp_path)
+    if upload_enabled:
+        if (
+            not processed_file.is_uploaded
+            and os.path.isfile(processed_file.dst_hashed_path)
+        ):
+            if not noop:
+                print("Starting upload for " + processed_file.object_name)
+                upload_succeded, upload_duration = processed_file.upload(
+                    obj_config, bucket_name
+                )
+                if verbose:
+                    print(f"Upload of {processed_file.object_name} took: {upload_duration}")
+                if upload_succeded or force_cleanup:
+                    os.remove(processed_file.dst_hashed_path)
+            else:
+                print("Would have start upload for " + processed_file.object_name)
         else:
-            print("Would have start upload for " + processed_file.object_name)
-    return not (conversion_failed or upload_failed)
+            if processed_file.is_uploaded:
+                print(f"File {processed_file.object_name} is already uploaded")
+            if not os.path.isfile(processed_file.dst_hashed_path):
+                print("No file found for the upload job")
+    else:
+        if os.path.isfile(processed_file.dst_hashed_path):
+            print(f"Upload disabled storing file {processed_file.object_name}"
+                  " in destination directory")
+            dst_path_parent_dir = os.path.dirname(processed_file.dst_path)
+            if not os.path.exists(dst_path_parent_dir):
+                os.makedirs(dst_path_parent_dir)
+            shutil.move(processed_file.dst_hashed_path, processed_file.dst_path)
+        else:
+            print(f"Upload disabled but file {processed_file.object_name}"
+                  " was not found to be stored in destination directory")
+    return convert_succeded and upload_succeded
 
 
 def main():
     """Gets the job done"""
     args = parse_args()
 
+    if not os.path.exists(args.src_dir):
+        print(f"Source directory {args.src_dir} does not exist")
+        sys.exit(1)
+
+    if not os.path.exists(args.dst_dir):
+        print(f"Destination directory {args.dst_dir} does not exist")
+        sys.exit(2)
+
+    if os.path.samefile(args.src_dir, args.dst_dir):
+        print("Source and destination directory can not be the same")
+        sys.exit(3)
+
     source_files = get_source_files(
-        args.source_dir, args.ignored_subdir, args.obj_prefix, args.file_extension
+        args.src_dir, args.ignored_subdir, args.obj_prefix, args.file_extension
     )
 
     obj_resource = get_obj_resource(OBJ_CONFIG)
@@ -315,7 +366,7 @@ def main():
         processing_params = ProcessingParams(
             args.resize,
             args.target_width,
-            args.target_width,
+            args.target_height,
             args.video_codec,
             args.pix_fmt,
             args.langs,
@@ -326,7 +377,7 @@ def main():
             source_files,
             bucket_files,
             args.file_extension,
-            args.tmp_dir,
+            args.dst_dir,
             processing_params,
         )
         jobs = Queue()
@@ -343,6 +394,8 @@ def main():
                     args.bucket_name,
                     args.force_cleanup,
                     args.noop,
+                    args.verbose,
+                    args.upload_enabled,
                 )
                 for _ in range(len(processed_files))
             ]
