@@ -338,9 +338,17 @@ def main():
     """Gets the job done"""
     args = parse_args()
 
+    if not os.path.exists(args.src_dir):
+        print(f"Source directory {args.src_dir} does not exist")
+        sys.exit(1)
+
+    if not os.path.exists(args.dst_dir):
+        print(f"Destination directory {args.dst_dir} does not exist")
+        sys.exit(2)
+
     if os.path.samefile(args.src_dir, args.dst_dir):
         print("Source and destination directory can not be the same")
-        sys.exit(1)
+        sys.exit(3)
 
     source_files = get_source_files(
         args.src_dir, args.ignored_subdir, args.obj_prefix, args.file_extension
