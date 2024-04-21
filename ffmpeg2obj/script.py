@@ -327,6 +327,9 @@ def convert_and_upload(
         if os.path.isfile(processed_file.dst_hashed_path):
             print(f"Upload disabled storing file {processed_file.object_name}"
                   " in destination directory")
+            dst_path_parent_dir = os.path.dirname(processed_file.dst_path)
+            if not os.path.exists(dst_path_parent_dir):
+                os.makedirs(dst_path_parent_dir)
             shutil.move(processed_file.dst_hashed_path, processed_file.dst_path)
         else:
             print(f"Upload disabled but file {processed_file.object_name}"
