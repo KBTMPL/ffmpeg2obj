@@ -75,10 +75,10 @@ class ProcessedFile:
 
     def update(self, obj_config: dict, bucket_name: str) -> None:
         """Updates ProcessedFile object instance attributes"""
-        lock_file_exist = file_exists(
+        lock_file_exist = file_exists_in_bucket(
             self.object_lock_file_name, obj_config, bucket_name
         )
-        uploaded_file_exist = file_exists(self.object_name, obj_config, bucket_name)
+        uploaded_file_exist = file_exists_in_bucket(self.object_name, obj_config, bucket_name)
         if lock_file_exist is not None:
             self.has_lockfile = lock_file_exist
         if uploaded_file_exist is not None:
@@ -167,7 +167,7 @@ class ProcessedFile:
         return self.is_uploaded, duration
 
 
-def file_exists(file: str, obj_config: dict, bucket_name: str) -> bool | None:
+def file_exists_in_bucket(file: str, obj_config: dict, bucket_name: str) -> bool | None:
     """Checks if given file exists in requested bucket"""
     obj_client = boto3.client("s3", **obj_config)
     try:
