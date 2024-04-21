@@ -47,7 +47,7 @@ class ProcessedFile:
         object_name: str,
         real_path: str,
         file_extension: str,
-        tmp_dir: str,
+        dst_dir: str,
         has_lockfile: bool,
         is_uploaded: bool,
         processing_params: ProcessingParams,
@@ -55,13 +55,13 @@ class ProcessedFile:
         self.object_name = object_name
         self.real_path = real_path
         self.file_extension = file_extension
-        self.tmp_dir = tmp_dir if tmp_dir.endswith("/") else tmp_dir + "/"
+        self.dst_dir = dst_dir if dst_dir.endswith("/") else dst_dir + "/"
         self.has_lockfile = has_lockfile
         self.is_uploaded = is_uploaded
         self.processing_params = processing_params
         self.hashed_name: str = hash_string(self.object_name)
         self.object_lock_file_name: str = self.object_name + ".lock"
-        self.tmp_path: str = self.tmp_dir + self.hashed_name + "." + self.file_extension
+        self.tmp_path: str = self.dst_dir + self.hashed_name + "." + self.file_extension
 
     def __str__(self) -> str:
         out = []

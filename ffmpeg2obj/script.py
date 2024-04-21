@@ -69,16 +69,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--source-dir",
-        dest="source_dir",
+        dest="src_dir",
         type=str,
         default=".",
         help="source directory for media to be transcoded",
     )
 
     parser.add_argument(
-        "-t",
-        "--tmp-dir",
-        dest="tmp_dir",
+        "-d",
+        "--destination-dir",
+        dest="dst_dir",
         type=str,
         default="/tmp/",
         help="temporary directory for media to be transcoded",
@@ -191,16 +191,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_source_files(
-    source_dir: str, ignored_subdir: str, obj_prefix: str, file_extension: str
+    src_dir: str, ignored_subdir: str, obj_prefix: str, file_extension: str
 ) -> dict[str, str]:
     """Looks for source files"""
     source_files = {}
-    for root, _, files in os.walk(source_dir):
+    for root, _, files in os.walk(src_dir):
         for name in files:
             if ignored_subdir not in root and file_extension in name:
                 real_path = unicodedata.normalize("NFC", os.path.join(root, name))
                 object_name = unicodedata.normalize(
-                    "NFC", real_path.replace(source_dir, obj_prefix)
+                    "NFC", real_path.replace(src_dir, obj_prefix)
                 )
                 source_file_dict = {object_name: real_path}
                 source_files.update(source_file_dict)
@@ -239,7 +239,7 @@ def get_processed_files(
     source_files: dict,
     bucket_objects: list,
     file_extension: str,
-    tmp_dir: str,
+    dst_dir: str,
     processing_params: ProcessingParams,
 ) -> list[ProcessedFile]:
     """Returns list of processed files based on collected data"""
@@ -252,7 +252,7 @@ def get_processed_files(
                 object_name,
                 real_path,
                 file_extension,
-                tmp_dir,
+                dst_dir,
                 has_lockfile,
                 is_uploaded,
                 processing_params,
@@ -304,7 +304,7 @@ def main():
     args = parse_args()
 
     source_files = get_source_files(
-        args.source_dir, args.ignored_subdir, args.obj_prefix, args.file_extension
+        args.src_dir, args.ignored_subdir, args.obj_prefix, args.file_extension
     )
 
     obj_resource = get_obj_resource(OBJ_CONFIG)
@@ -327,7 +327,7 @@ def main():
             source_files,
             bucket_files,
             args.file_extension,
-            args.tmp_dir,
+            args.dst_dir,
             processing_params,
         )
         jobs = Queue()
