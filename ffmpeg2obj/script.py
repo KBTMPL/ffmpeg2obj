@@ -6,6 +6,8 @@ Main executable for simple project that compresses blu ray movie library and sto
 
 import argparse
 import os
+import sys
+import shutil
 import unicodedata
 from queue import Queue
 from threading import Lock
@@ -64,6 +66,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         default=False,
         help="cleans up even on upload failure",
+    )
+
+    parser.add_argument(
+        "--disable-upload",
+        dest="upload_enabled",
+        action="store_false",
+        default=True,
+        help="disables default upload to object storage and stores files locally",
     )
 
     parser.add_argument(
@@ -269,6 +279,7 @@ def convert_and_upload(
     force_cleanup: bool,
     noop: bool,
     verbose: bool,
+    upload_enabled: bool,
 ) -> bool:
     """Converts and uploads media taken from queue"""
     processed_file: ProcessedFile = queue.get()
@@ -279,29 +290,57 @@ def convert_and_upload(
             if not noop:
                 # TODO: improve overall ffmpeg-python error handling and maybe show status
                 print("Starting conversion for " + processed_file.object_name)
-                _, _, convert_succeded, convert_duration = processed_file.convert()
+                std_out, std_err, convert_succeded, convert_duration = processed_file.convert()
                 if verbose:
-                    print(f"Conversion took: {convert_duration}")
+                    print(f"Conversion of file {processed_file.object_name}"
+                          f" took: {convert_duration}\n")
+                    print("\nffmpeg standard output:")
+                    print(std_out)
+                    print("\nffmpeg standard error:")
+                    print(std_err)
                 if convert_succeded:
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
-    if not processed_file.is_uploaded and os.path.isfile(processed_file.tmp_path):
-        if not noop:
-            print("Starting upload for " + processed_file.object_name)
-            upload_succeded, upload_duration = processed_file.upload(obj_config, bucket_name)
-            if verbose:
-                print(f"Upload took: {upload_duration}")
-            if upload_succeded or force_cleanup:
-                os.remove(processed_file.tmp_path)
+    if upload_enabled:
+        if (
+            not processed_file.is_uploaded
+            and os.path.isfile(processed_file.dst_hashed_path)
+        ):
+            if not noop:
+                print("Starting upload for " + processed_file.object_name)
+                upload_succeded, upload_duration = processed_file.upload(
+                    obj_config, bucket_name
+                )
+                if verbose:
+                    print(f"Upload of {processed_file.object_name} took: {upload_duration}")
+                if upload_succeded or force_cleanup:
+                    os.remove(processed_file.dst_hashed_path)
+            else:
+                print("Would have start upload for " + processed_file.object_name)
         else:
-            print("Would have start upload for " + processed_file.object_name)
+            if processed_file.is_uploaded:
+                print(f"File {processed_file.object_name} is already uploaded")
+            if not os.path.isfile(processed_file.dst_hashed_path):
+                print("No file found for the upload job")
+    else:
+        if os.path.isfile(processed_file.dst_hashed_path):
+            print(f"Upload disabled storing file {processed_file.object_name}"
+                  " in destination directory")
+            shutil.move(processed_file.dst_hashed_path, processed_file.dst_path)
+        else:
+            print(f"Upload disabled but file {processed_file.object_name}"
+                  " was not found to be stored in destination directory")
     return convert_succeded and upload_succeded
 
 
 def main():
     """Gets the job done"""
     args = parse_args()
+
+    if os.path.samefile(args.src_dir, args.dst_dir):
+        print("Source and destination directory can not be the same")
+        sys.exit(1)
 
     source_files = get_source_files(
         args.src_dir, args.ignored_subdir, args.obj_prefix, args.file_extension
@@ -345,6 +384,7 @@ def main():
                     args.force_cleanup,
                     args.noop,
                     args.verbose,
+                    args.upload_enabled,
                 )
                 for _ in range(len(processed_files))
             ]

@@ -61,7 +61,8 @@ class ProcessedFile:
         self.processing_params = processing_params
         self.hashed_name: str = hash_string(self.object_name)
         self.object_lock_file_name: str = self.object_name + ".lock"
-        self.tmp_path: str = self.dst_dir + self.hashed_name + "." + self.file_extension
+        self.dst_path: str = self.dst_dir + self.object_name + "." + self.file_extension
+        self.dst_hashed_path: str = self.dst_dir + self.hashed_name + "." + self.file_extension
 
     def __str__(self) -> str:
         out = []
@@ -123,17 +124,17 @@ class ProcessedFile:
             }
             opts_dict.update(scale_dict)
         stream = ffmpeg.input(self.real_path)
-        stream = ffmpeg.output(stream, self.tmp_path, **opts_dict)
+        stream = ffmpeg.output(stream, self.dst_hashed_path, **opts_dict)
         start_time = time.monotonic()
         try:
-            out, err = ffmpeg.run(stream)
+            std_out, std_err = ffmpeg.run(stream)
         except ffmpeg.Error as e:
             print(f"Caught occured: {e}")
         else:
             convert_succeded = True
         end_time = time.monotonic()
         duration = timedelta(seconds=end_time - start_time)
-        return out, err, convert_succeded, duration
+        return std_out, std_err, convert_succeded, duration
 
     def create_lock_file(self, obj_config: dict, bucket_name: str) -> bool:
         """Creates empty lock file on object storage bucket"""
@@ -155,7 +156,7 @@ class ProcessedFile:
         obj_client = boto3.client("s3", **obj_config)
         start_time = time.monotonic()
         try:
-            obj_client.upload_file(self.tmp_path, bucket_name, self.object_name)
+            obj_client.upload_file(self.dst_hashed_path, bucket_name, self.object_name)
         except botocore.exceptions.ClientError as e:
             print(e)
         else:
