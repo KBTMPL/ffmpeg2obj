@@ -2,11 +2,12 @@
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes, too-many-arguments
 
-import json
 import hashlib
-from typing import Any
+import json
 import time
 from datetime import timedelta
+from typing import Any
+
 import boto3
 import botocore
 import ffmpeg  # type: ignore[import-untyped]
@@ -62,7 +63,9 @@ class ProcessedFile:
         self.hashed_name: str = hash_string(self.object_name)
         self.object_lock_file_name: str = self.object_name + ".lock"
         self.dst_path: str = self.dst_dir + self.object_name + "." + self.file_extension
-        self.dst_hashed_path: str = self.dst_dir + self.hashed_name + "." + self.file_extension
+        self.dst_hashed_path: str = (
+            self.dst_dir + self.hashed_name + "." + self.file_extension
+        )
 
     def __str__(self) -> str:
         out = []
@@ -78,7 +81,9 @@ class ProcessedFile:
         lock_file_exist = file_exists_in_bucket(
             self.object_lock_file_name, obj_config, bucket_name
         )
-        uploaded_file_exist = file_exists_in_bucket(self.object_name, obj_config, bucket_name)
+        uploaded_file_exist = file_exists_in_bucket(
+            self.object_name, obj_config, bucket_name
+        )
         if lock_file_exist is not None:
             self.has_lockfile = lock_file_exist
         if uploaded_file_exist is not None:

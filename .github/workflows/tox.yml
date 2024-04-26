@@ -1,0 +1,31 @@
+name: tox
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: "Python ${{ matrix.python }} ${{ matrix.tox }}"
+    runs-on: ubuntu-latest
+    container: python:${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {python: '3.11', tox: style}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Git config
+      run: git config --system --add safe.directory /__w/ffmpeg2obj/ffmpeg2obj
+    - name: Upgrade pip
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install tox
+    - name: Run tox
+      run: tox run -e ${{ matrix.tox }}

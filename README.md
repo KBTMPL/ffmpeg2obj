@@ -22,8 +22,16 @@ Setup and activate venv
 
 Install the packages
 
+For usage:
+
 ```bash
 (venv) ~/ffmpeg2obj$ pip install .
+```
+
+For development:
+
+```bash
+(venv) ~/ffmpeg2obj$ pip install -e .[dev]
 ```
 
 ## Usage
