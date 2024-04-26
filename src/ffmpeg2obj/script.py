@@ -6,17 +6,17 @@ Main executable for simple project that compresses blu ray movie library and sto
 
 import argparse
 import os
-import sys
 import shutil
+import sys
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor, wait
 from queue import Queue
 from threading import Lock
-from concurrent.futures import ThreadPoolExecutor, wait
+
 import boto3
 import botocore
 
 from ffmpeg2obj.helper import ProcessedFile, ProcessingParams
-
 
 OBJ_ACCESS_KEY_ID = os.environ.get("aws_access_key_id", None)
 OBJ_SECRET_ACCESS_KEY = os.environ.get("aws_secret_access_key", None)
@@ -290,10 +290,14 @@ def convert_and_upload(
             if not noop:
                 # TODO: improve overall ffmpeg-python error handling and maybe show status
                 print("Starting conversion for " + processed_file.object_name)
-                std_out, std_err, convert_succeded, convert_duration = processed_file.convert()
+                std_out, std_err, convert_succeded, convert_duration = (
+                    processed_file.convert()
+                )
                 if verbose:
-                    print(f"Conversion of file {processed_file.object_name}"
-                          f" took: {convert_duration}\n")
+                    print(
+                        f"Conversion of file {processed_file.object_name}"
+                        f" took: {convert_duration}\n"
+                    )
                     print("\nffmpeg standard output:")
                     print(std_out)
                     print("\nffmpeg standard error:")
@@ -303,9 +307,8 @@ def convert_and_upload(
             else:
                 print("Would have start conversion for " + processed_file.object_name)
     if upload_enabled:
-        if (
-            not processed_file.is_uploaded
-            and os.path.isfile(processed_file.dst_hashed_path)
+        if not processed_file.is_uploaded and os.path.isfile(
+            processed_file.dst_hashed_path
         ):
             if not noop:
                 print("Starting upload for " + processed_file.object_name)
@@ -313,7 +316,9 @@ def convert_and_upload(
                     obj_config, bucket_name
                 )
                 if verbose:
-                    print(f"Upload of {processed_file.object_name} took: {upload_duration}")
+                    print(
+                        f"Upload of {processed_file.object_name} took: {upload_duration}"
+                    )
                 if upload_succeded or force_cleanup:
                     os.remove(processed_file.dst_hashed_path)
             else:
@@ -325,15 +330,19 @@ def convert_and_upload(
                 print("No file found for the upload job")
     else:
         if os.path.isfile(processed_file.dst_hashed_path):
-            print(f"Upload disabled storing file {processed_file.object_name}"
-                  " in destination directory")
+            print(
+                f"Upload disabled storing file {processed_file.object_name}"
+                " in destination directory"
+            )
             dst_path_parent_dir = os.path.dirname(processed_file.dst_path)
             if not os.path.exists(dst_path_parent_dir):
                 os.makedirs(dst_path_parent_dir)
             shutil.move(processed_file.dst_hashed_path, processed_file.dst_path)
         else:
-            print(f"Upload disabled but file {processed_file.object_name}"
-                  " was not found to be stored in destination directory")
+            print(
+                f"Upload disabled but file {processed_file.object_name}"
+                " was not found to be stored in destination directory"
+            )
     return convert_succeded and upload_succeded
 
 
