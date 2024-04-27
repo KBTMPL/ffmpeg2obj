@@ -229,10 +229,12 @@ def selected_bucket_exist(
 
 
 def get_bucket_files(
-    obj_resource: boto3.resource.__class__, bucket_name: str
+    obj_resource: boto3.resource.__class__, bucket_name: str | None
 ) -> list[str]:
     """Returns objects from given object storage bucket"""
     bucket_files: list[str] = []
+    if bucket_name is None:
+        return bucket_files
     if selected_bucket_exist(obj_resource, bucket_name):
         bucket_files += list(
             unicodedata.normalize("NFC", file.key)
