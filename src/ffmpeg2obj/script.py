@@ -285,7 +285,9 @@ def convert_and_upload(
     processed_file: ProcessedFile = queue.get()
     convert_succeded = False
     upload_succeded = False
-    if not processed_file.has_lockfile:
+    if not processed_file.has_lockfile or (
+        not upload_enabled and not os.path.isfile(processed_file.dst_path)
+    ):
         with lock:
             if not noop:
                 # TODO: improve overall ffmpeg-python error handling and maybe show status
