@@ -199,7 +199,9 @@ def get_source_files(
     source_files = {}
     for root, _, files in os.walk(src_dir):
         for name in files:
-            if ignored_subdir not in root and file_extension in name:
+            if ignored_subdir not in root and name.lower().endswith(
+                file_extension.lower()
+            ):
                 real_path = unicodedata.normalize("NFC", os.path.join(root, name))
                 object_name = unicodedata.normalize(
                     "NFC", real_path.replace(src_dir, obj_prefix)
