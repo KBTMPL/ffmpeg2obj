@@ -301,7 +301,7 @@ def convert_and_upload(
                     if std_err is not None:
                         print("\nffmpeg standard error:")
                         print(std_err)
-                if convert_succeded:
+                if convert_succeded and upload_enabled:
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
@@ -359,7 +359,11 @@ def convert_and_upload(
     def needs_conversion(processed_file: ProcessedFile):
         """Checks whether file needs conversion"""
         return not processed_file.has_lockfile or (
-            not upload_enabled and not os.path.isfile(processed_file.dst_path)
+            not upload_enabled
+            and not (
+                os.path.isfile(processed_file.dst_hashed_path)
+                or os.path.isfile(processed_file.dst_path)
+            )
         )
 
     processed_file: ProcessedFile = queue.get()
