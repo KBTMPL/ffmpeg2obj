@@ -280,12 +280,9 @@ def convert_and_upload(
     upload_enabled: bool,
 ) -> bool:
     """Converts and uploads media taken from queue"""
-    processed_file: ProcessedFile = queue.get()
-    convert_succeded = False
-    upload_succeded = False
-    if not processed_file.has_lockfile or (
-        not upload_enabled and not os.path.isfile(processed_file.dst_path)
-    ):
+
+    def convert(processed_file: ProcessedFile) -> bool:
+        """Handles conversion of source file"""
         with lock:
             if not noop:
                 # TODO: improve overall ffmpeg-python error handling and maybe show status
@@ -296,17 +293,22 @@ def convert_and_upload(
                 if verbose:
                     print(
                         f"Conversion of file {processed_file.object_name}"
-                        f" took: {convert_duration}\n"
+                        f" took: {convert_duration}"
                     )
-                    print("\nffmpeg standard output:")
-                    print(std_out)
-                    print("\nffmpeg standard error:")
-                    print(std_err)
+                    if std_out is not None:
+                        print("\nffmpeg standard output:")
+                        print(std_out)
+                    if std_err is not None:
+                        print("\nffmpeg standard error:")
+                        print(std_err)
                 if convert_succeded:
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
-    if upload_enabled:
+            return convert_succeded
+
+    def upload(processed_file: ProcessedFile) -> bool:
+        """Handles upload of destination file to object storage"""
         if not processed_file.is_uploaded and os.path.isfile(
             processed_file.dst_hashed_path
         ):
@@ -326,24 +328,48 @@ def convert_and_upload(
         else:
             if processed_file.is_uploaded:
                 print(f"File {processed_file.object_name} is already uploaded")
-            if not os.path.isfile(processed_file.dst_hashed_path):
-                print("No file found for the upload job")
-    else:
+            if (
+                not os.path.isfile(processed_file.dst_hashed_path)
+                and not processed_file.is_uploaded
+            ):
+                print(
+                    f"Temporary file for {processed_file.object_name}"
+                    " not found for the upload job"
+                )
+        return upload_succeded
+
+    def store(processed_file: ProcessedFile) -> bool:
+        """Handles local storage of destination file"""
         if os.path.isfile(processed_file.dst_hashed_path):
             print(
-                f"Upload disabled storing file {processed_file.object_name}"
-                " in destination directory"
+                f"Storing file {processed_file.object_name}" " in destination directory"
             )
             dst_path_parent_dir = os.path.dirname(processed_file.dst_path)
             if not os.path.exists(dst_path_parent_dir):
                 os.makedirs(dst_path_parent_dir)
             shutil.move(processed_file.dst_hashed_path, processed_file.dst_path)
+            store_succeded = True
         else:
             print(
-                f"Upload disabled but file {processed_file.object_name}"
-                " was not found to be stored in destination directory"
+                f"Temporary file for {processed_file.object_name} not found"
+                " to be stored in destination directory"
             )
-    return convert_succeded and upload_succeded
+        return store_succeded
+
+    def needs_conversion(processed_file: ProcessedFile):
+        """Checks whether file needs conversion"""
+        return not processed_file.has_lockfile or (
+            not upload_enabled and not os.path.isfile(processed_file.dst_path)
+        )
+
+    processed_file: ProcessedFile = queue.get()
+    if needs_conversion(processed_file):
+        convert_succeded = convert(processed_file)
+    if upload_enabled:
+        upload_succeded = upload(processed_file)
+    else:
+        store_succeded = store(processed_file)
+    return convert_succeded and (upload_succeded or store_succeded)
 
 
 def main():
