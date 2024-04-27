@@ -71,7 +71,7 @@ class ProcessedFile:
         self.processing_params = processing_params
         self.hashed_name: str = hash_string(self.object_name)
         self.object_lock_file_name: str = self.object_name + ".lock"
-        self.dst_path: str = self.dst_dir + self.object_name + "." + self.file_extension
+        self.dst_path: str = self.dst_dir + self.object_name
         self.dst_hashed_path: str = (
             self.dst_dir + self.hashed_name + "." + self.file_extension
         )
