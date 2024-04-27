@@ -61,14 +61,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--disable-upload",
-        dest="upload_enabled",
-        action="store_false",
-        default=True,
-        help="disables default upload to object storage and stores files locally",
-    )
-
-    parser.add_argument(
         "-s",
         "--source-dir",
         dest="src_dir",
@@ -100,16 +92,6 @@ def parse_args() -> argparse.Namespace:
         "--obj-prefix",
         dest="obj_prefix",
         type=str,
-        default="",
-        help="source directory for media to be transcoded",
-    )
-
-    parser.add_argument(
-        "-b",
-        "--bucket-name",
-        dest="bucket_name",
-        type=str,
-        required=True,
         default="",
         help="source directory for media to be transcoded",
     )
@@ -171,6 +153,24 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=1080,
         help="target height for the media files to be transcoded",
+    )
+
+    obj_group = parser.add_mutually_exclusive_group(required=True)
+
+    obj_group.add_argument(
+        "-b",
+        "--bucket-name",
+        dest="bucket_name",
+        type=str,
+        help="source directory for media to be transcoded",
+    )
+
+    obj_group.add_argument(
+        "--disable-upload",
+        dest="upload_enabled",
+        action="store_false",
+        default=True,
+        help="disables default upload to object storage and stores files locally",
     )
 
     qf_group = parser.add_mutually_exclusive_group(required=True)
