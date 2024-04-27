@@ -107,7 +107,7 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def convert(self) -> tuple[bytes, bytes, bool, timedelta]:
+    def convert(self) -> tuple[str, str, bool, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         convert_succeded = False
         # core opts
@@ -143,9 +143,11 @@ class ProcessedFile:
         try:
             std_out, std_err = ffmpeg.run(stream)
         except ffmpeg.Error as e:
-            print(f"Caught occured: {e}")
-        else:
-            convert_succeded = True
+            print(f"Error occured: {e}")
+            end_time = time.monotonic()
+            duration = timedelta(seconds=end_time - start_time)
+            return e.stdout, e.stderr, convert_succeded, duration
+        convert_succeded = True
         end_time = time.monotonic()
         duration = timedelta(seconds=end_time - start_time)
         return std_out, std_err, convert_succeded, duration
