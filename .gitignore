@@ -6,6 +6,11 @@
 # VS Code specific
 *.code-workspace
 
+# Byte-compiled / optimized / DLL files
+*pycache*
+*.py[cod]
+*$py.class
+
 # Distribution / packaging
 .Python
 env/

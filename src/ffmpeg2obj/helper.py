@@ -2,6 +2,7 @@
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes, too-many-arguments
 
+import argparse
 import hashlib
 import json
 import time
@@ -11,6 +12,14 @@ from typing import Any
 import boto3
 import botocore
 import ffmpeg  # type: ignore[import-untyped]
+
+
+class SplitArgs(argparse.Action):
+    """Custom argparse action class borrowed from stackoverflow"""
+
+    # https://stackoverflow.com/questions/52132076/argparse-action-or-type-for-comma-separated-list
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values.split(","))
 
 
 class ProcessingParams:
@@ -62,7 +71,7 @@ class ProcessedFile:
         self.processing_params = processing_params
         self.hashed_name: str = hash_string(self.object_name)
         self.object_lock_file_name: str = self.object_name + ".lock"
-        self.dst_path: str = self.dst_dir + self.object_name + "." + self.file_extension
+        self.dst_path: str = self.dst_dir + self.object_name
         self.dst_hashed_path: str = (
             self.dst_dir + self.hashed_name + "." + self.file_extension
         )
@@ -98,7 +107,7 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def convert(self) -> tuple[bytes, bytes, bool, timedelta]:
+    def convert(self) -> tuple[str, str, bool, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         convert_succeded = False
         # core opts
@@ -134,9 +143,11 @@ class ProcessedFile:
         try:
             std_out, std_err = ffmpeg.run(stream)
         except ffmpeg.Error as e:
-            print(f"Caught occured: {e}")
-        else:
-            convert_succeded = True
+            print(f"Error occured: {e}")
+            end_time = time.monotonic()
+            duration = timedelta(seconds=end_time - start_time)
+            return e.stdout, e.stderr, convert_succeded, duration
+        convert_succeded = True
         end_time = time.monotonic()
         duration = timedelta(seconds=end_time - start_time)
         return std_out, std_err, convert_succeded, duration

@@ -16,7 +16,7 @@ from threading import Lock
 import boto3
 import botocore
 
-from ffmpeg2obj.helper import ProcessedFile, ProcessingParams
+from ffmpeg2obj.helper import ProcessedFile, ProcessingParams, SplitArgs
 
 OBJ_ACCESS_KEY_ID = os.environ.get("aws_access_key_id", None)
 OBJ_SECRET_ACCESS_KEY = os.environ.get("aws_secret_access_key", None)
@@ -27,14 +27,6 @@ OBJ_CONFIG = {
     "aws_secret_access_key": OBJ_SECRET_ACCESS_KEY,
     "endpoint_url": OBJ_ENDPOINT_URL,
 }
-
-
-class SplitArgs(argparse.Action):
-    """Custom argparse action class borrowed from stackoverflow"""
-
-    # https://stackoverflow.com/questions/52132076/argparse-action-or-type-for-comma-separated-list
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, values.split(","))
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,14 +61,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--disable-upload",
-        dest="upload_enabled",
-        action="store_false",
-        default=True,
-        help="disables default upload to object storage and stores files locally",
-    )
-
-    parser.add_argument(
         "-s",
         "--source-dir",
         dest="src_dir",
@@ -108,16 +92,6 @@ def parse_args() -> argparse.Namespace:
         "--obj-prefix",
         dest="obj_prefix",
         type=str,
-        default="",
-        help="source directory for media to be transcoded",
-    )
-
-    parser.add_argument(
-        "-b",
-        "--bucket-name",
-        dest="bucket_name",
-        type=str,
-        required=True,
         default="",
         help="source directory for media to be transcoded",
     )
@@ -181,6 +155,24 @@ def parse_args() -> argparse.Namespace:
         help="target height for the media files to be transcoded",
     )
 
+    obj_group = parser.add_mutually_exclusive_group(required=True)
+
+    obj_group.add_argument(
+        "-b",
+        "--bucket-name",
+        dest="bucket_name",
+        type=str,
+        help="source directory for media to be transcoded",
+    )
+
+    obj_group.add_argument(
+        "--disable-upload",
+        dest="upload_enabled",
+        action="store_false",
+        default=True,
+        help="disables default upload to object storage and stores files locally",
+    )
+
     qf_group = parser.add_mutually_exclusive_group(required=True)
 
     qf_group.add_argument(
@@ -207,7 +199,9 @@ def get_source_files(
     source_files = {}
     for root, _, files in os.walk(src_dir):
         for name in files:
-            if ignored_subdir not in root and file_extension in name:
+            if ignored_subdir not in root and name.lower().endswith(
+                file_extension.lower()
+            ):
                 real_path = unicodedata.normalize("NFC", os.path.join(root, name))
                 object_name = unicodedata.normalize(
                     "NFC", real_path.replace(src_dir, obj_prefix)
@@ -236,12 +230,18 @@ def selected_bucket_exist(
     return bucket_exists
 
 
-def get_bucket_files(obj_resource: boto3.resource.__class__, bucket_name: str):
+def get_bucket_files(
+    obj_resource: boto3.resource.__class__, bucket_name: str | None
+) -> list[str]:
     """Returns objects from given object storage bucket"""
-    bucket_files = list(
-        unicodedata.normalize("NFC", file.key)
-        for file in obj_resource.Bucket(bucket_name).objects.all()
-    )
+    bucket_files: list[str] = []
+    if bucket_name is None:
+        return bucket_files
+    if selected_bucket_exist(obj_resource, bucket_name):
+        bucket_files += list(
+            unicodedata.normalize("NFC", file.key)
+            for file in obj_resource.Bucket(bucket_name).objects.all()
+        )
     return bucket_files
 
 
@@ -282,10 +282,9 @@ def convert_and_upload(
     upload_enabled: bool,
 ) -> bool:
     """Converts and uploads media taken from queue"""
-    processed_file: ProcessedFile = queue.get()
-    convert_succeded = False
-    upload_succeded = False
-    if not processed_file.has_lockfile:
+
+    def convert(processed_file: ProcessedFile) -> bool:
+        """Handles conversion of source file"""
         with lock:
             if not noop:
                 # TODO: improve overall ffmpeg-python error handling and maybe show status
@@ -296,17 +295,22 @@ def convert_and_upload(
                 if verbose:
                     print(
                         f"Conversion of file {processed_file.object_name}"
-                        f" took: {convert_duration}\n"
+                        f" took: {convert_duration}"
                     )
-                    print("\nffmpeg standard output:")
-                    print(std_out)
-                    print("\nffmpeg standard error:")
-                    print(std_err)
-                if convert_succeded:
+                    if std_out is not None:
+                        print("\nffmpeg standard output:")
+                        print(std_out)
+                    if std_err is not None:
+                        print("\nffmpeg standard error:")
+                        print(std_err)
+                if convert_succeded and upload_enabled:
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
-    if upload_enabled:
+            return convert_succeded
+
+    def upload(processed_file: ProcessedFile) -> bool:
+        """Handles upload of destination file to object storage"""
         if not processed_file.is_uploaded and os.path.isfile(
             processed_file.dst_hashed_path
         ):
@@ -326,24 +330,52 @@ def convert_and_upload(
         else:
             if processed_file.is_uploaded:
                 print(f"File {processed_file.object_name} is already uploaded")
-            if not os.path.isfile(processed_file.dst_hashed_path):
-                print("No file found for the upload job")
-    else:
+            if (
+                not os.path.isfile(processed_file.dst_hashed_path)
+                and not processed_file.is_uploaded
+            ):
+                print(
+                    f"Temporary file for {processed_file.object_name}"
+                    " not found for the upload job"
+                )
+        return upload_succeded
+
+    def store(processed_file: ProcessedFile) -> bool:
+        """Handles local storage of destination file"""
         if os.path.isfile(processed_file.dst_hashed_path):
             print(
-                f"Upload disabled storing file {processed_file.object_name}"
-                " in destination directory"
+                f"Storing file {processed_file.object_name}" " in destination directory"
             )
             dst_path_parent_dir = os.path.dirname(processed_file.dst_path)
             if not os.path.exists(dst_path_parent_dir):
                 os.makedirs(dst_path_parent_dir)
             shutil.move(processed_file.dst_hashed_path, processed_file.dst_path)
+            store_succeded = True
         else:
             print(
-                f"Upload disabled but file {processed_file.object_name}"
-                " was not found to be stored in destination directory"
+                f"Temporary file for {processed_file.object_name} not found"
+                " to be stored in destination directory"
             )
-    return convert_succeded and upload_succeded
+        return store_succeded
+
+    def needs_conversion(processed_file: ProcessedFile):
+        """Checks whether file needs conversion"""
+        return not processed_file.has_lockfile or (
+            not upload_enabled
+            and not (
+                os.path.isfile(processed_file.dst_hashed_path)
+                or os.path.isfile(processed_file.dst_path)
+            )
+        )
+
+    processed_file: ProcessedFile = queue.get()
+    if needs_conversion(processed_file):
+        convert_succeded = convert(processed_file)
+    if upload_enabled:
+        upload_succeded = upload(processed_file)
+    else:
+        store_succeded = store(processed_file)
+    return convert_succeded and (upload_succeded or store_succeded)
 
 
 def main():
@@ -367,48 +399,48 @@ def main():
     )
 
     obj_resource = get_obj_resource(OBJ_CONFIG)
+    bucket_files = get_bucket_files(obj_resource, args.bucket_name)
 
-    if selected_bucket_exist(obj_resource, args.bucket_name):
-        if args.noop:
-            print("noop enabled, will not take any actions")
-        bucket_files = get_bucket_files(obj_resource, args.bucket_name)
-        processing_params = ProcessingParams(
-            args.resize,
-            args.target_width,
-            args.target_height,
-            args.video_codec,
-            args.pix_fmt,
-            args.langs,
-            args.target_qp,
-            args.target_crf,
-        )
-        processed_files = get_processed_files(
-            source_files,
-            bucket_files,
-            args.file_extension,
-            args.dst_dir,
-            processing_params,
-        )
-        jobs = Queue()
-        for file in processed_files:
-            jobs.put(file)
-        lock = Lock()
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [
-                executor.submit(
-                    convert_and_upload,
-                    jobs,
-                    lock,
-                    OBJ_CONFIG,
-                    args.bucket_name,
-                    args.force_cleanup,
-                    args.noop,
-                    args.verbose,
-                    args.upload_enabled,
-                )
-                for _ in range(len(processed_files))
-            ]
-        wait(futures)
+    if args.noop:
+        print("noop enabled, will not take any actions")
+
+    processing_params = ProcessingParams(
+        args.resize,
+        args.target_width,
+        args.target_height,
+        args.video_codec,
+        args.pix_fmt,
+        args.langs,
+        args.target_qp,
+        args.target_crf,
+    )
+    processed_files = get_processed_files(
+        source_files,
+        bucket_files,
+        args.file_extension,
+        args.dst_dir,
+        processing_params,
+    )
+    jobs = Queue()
+    for file in processed_files:
+        jobs.put(file)
+    lock = Lock()
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(
+                convert_and_upload,
+                jobs,
+                lock,
+                OBJ_CONFIG,
+                args.bucket_name,
+                args.force_cleanup,
+                args.noop,
+                args.verbose,
+                args.upload_enabled,
+            )
+            for _ in range(len(processed_files))
+        ]
+    wait(futures)
 
 
 if __name__ == "__main__":
