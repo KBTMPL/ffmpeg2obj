@@ -236,12 +236,16 @@ def selected_bucket_exist(
     return bucket_exists
 
 
-def get_bucket_files(obj_resource: boto3.resource.__class__, bucket_name: str):
+def get_bucket_files(
+    obj_resource: boto3.resource.__class__, bucket_name: str
+) -> list[str]:
     """Returns objects from given object storage bucket"""
-    bucket_files = list(
-        unicodedata.normalize("NFC", file.key)
-        for file in obj_resource.Bucket(bucket_name).objects.all()
-    )
+    bucket_files: list[str] = []
+    if selected_bucket_exist(obj_resource, bucket_name):
+        bucket_files += list(
+            unicodedata.normalize("NFC", file.key)
+            for file in obj_resource.Bucket(bucket_name).objects.all()
+        )
     return bucket_files
 
 
@@ -369,48 +373,48 @@ def main():
     )
 
     obj_resource = get_obj_resource(OBJ_CONFIG)
+    bucket_files = get_bucket_files(obj_resource, args.bucket_name)
 
-    if selected_bucket_exist(obj_resource, args.bucket_name):
-        if args.noop:
-            print("noop enabled, will not take any actions")
-        bucket_files = get_bucket_files(obj_resource, args.bucket_name)
-        processing_params = ProcessingParams(
-            args.resize,
-            args.target_width,
-            args.target_height,
-            args.video_codec,
-            args.pix_fmt,
-            args.langs,
-            args.target_qp,
-            args.target_crf,
-        )
-        processed_files = get_processed_files(
-            source_files,
-            bucket_files,
-            args.file_extension,
-            args.dst_dir,
-            processing_params,
-        )
-        jobs = Queue()
-        for file in processed_files:
-            jobs.put(file)
-        lock = Lock()
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [
-                executor.submit(
-                    convert_and_upload,
-                    jobs,
-                    lock,
-                    OBJ_CONFIG,
-                    args.bucket_name,
-                    args.force_cleanup,
-                    args.noop,
-                    args.verbose,
-                    args.upload_enabled,
-                )
-                for _ in range(len(processed_files))
-            ]
-        wait(futures)
+    if args.noop:
+        print("noop enabled, will not take any actions")
+
+    processing_params = ProcessingParams(
+        args.resize,
+        args.target_width,
+        args.target_height,
+        args.video_codec,
+        args.pix_fmt,
+        args.langs,
+        args.target_qp,
+        args.target_crf,
+    )
+    processed_files = get_processed_files(
+        source_files,
+        bucket_files,
+        args.file_extension,
+        args.dst_dir,
+        processing_params,
+    )
+    jobs = Queue()
+    for file in processed_files:
+        jobs.put(file)
+    lock = Lock()
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(
+                convert_and_upload,
+                jobs,
+                lock,
+                OBJ_CONFIG,
+                args.bucket_name,
+                args.force_cleanup,
+                args.noop,
+                args.verbose,
+                args.upload_enabled,
+            )
+            for _ in range(len(processed_files))
+        ]
+    wait(futures)
 
 
 if __name__ == "__main__":
