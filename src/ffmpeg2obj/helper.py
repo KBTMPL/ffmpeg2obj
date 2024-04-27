@@ -2,6 +2,7 @@
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes, too-many-arguments
 
+import argparse
 import hashlib
 import json
 import time
@@ -11,6 +12,14 @@ from typing import Any
 import boto3
 import botocore
 import ffmpeg  # type: ignore[import-untyped]
+
+
+class SplitArgs(argparse.Action):
+    """Custom argparse action class borrowed from stackoverflow"""
+
+    # https://stackoverflow.com/questions/52132076/argparse-action-or-type-for-comma-separated-list
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values.split(","))
 
 
 class ProcessingParams:

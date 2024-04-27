@@ -16,7 +16,7 @@ from threading import Lock
 import boto3
 import botocore
 
-from ffmpeg2obj.helper import ProcessedFile, ProcessingParams
+from ffmpeg2obj.helper import ProcessedFile, ProcessingParams, SplitArgs
 
 OBJ_ACCESS_KEY_ID = os.environ.get("aws_access_key_id", None)
 OBJ_SECRET_ACCESS_KEY = os.environ.get("aws_secret_access_key", None)
@@ -27,14 +27,6 @@ OBJ_CONFIG = {
     "aws_secret_access_key": OBJ_SECRET_ACCESS_KEY,
     "endpoint_url": OBJ_ENDPOINT_URL,
 }
-
-
-class SplitArgs(argparse.Action):
-    """Custom argparse action class borrowed from stackoverflow"""
-
-    # https://stackoverflow.com/questions/52132076/argparse-action-or-type-for-comma-separated-list
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, values.split(","))
 
 
 def parse_args() -> argparse.Namespace:
