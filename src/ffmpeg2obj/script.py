@@ -287,20 +287,20 @@ def convert_and_upload(
         """Handles conversion of source file"""
         with lock:
             if not noop:
-                # TODO: improve overall ffmpeg-python error handling and maybe show status
+                # TODO: improve overall communicating job progress to user
                 print("Starting conversion for " + processed_file.object_name)
                 std_out, std_err, convert_succeded, convert_duration = (
-                    processed_file.convert()
+                    processed_file.convert(verbose)
                 )
                 if verbose:
                     print(
                         f"Conversion of file {processed_file.object_name}"
                         f" took: {convert_duration}"
                     )
-                    if std_out is not None:
+                    if std_out != "":
                         print("\nffmpeg standard output:")
                         print(std_out)
-                    if std_err is not None:
+                    if std_err != "":
                         print("\nffmpeg standard error:")
                         print(std_err)
                 if convert_succeded and upload_enabled:
