@@ -107,7 +107,7 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def convert(self) -> tuple[str, str, bool, timedelta]:
+    def convert(self, verbose: bool = False) -> tuple[str, str, bool, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         convert_succeded = False
         # core opts
@@ -116,7 +116,7 @@ class ProcessedFile:
             "pix_fmt": self.processing_params.pix_fmt,
             "c:a": "copy",
             "c:s": "copy",
-            "v": "quiet",
+            "v": "error",
         }
         # conditional opts
         if self.processing_params.target_crf is not None:
@@ -140,17 +140,21 @@ class ProcessedFile:
         stream = ffmpeg.input(self.real_path)
         stream = ffmpeg.output(stream, self.dst_hashed_path, **opts_dict)
         start_time = time.monotonic()
+        if verbose:
+            print(" ".join(ffmpeg.compile(stream)))
         try:
-            std_out, std_err = ffmpeg.run(stream)
+            std_out, std_err = ffmpeg.run(
+                stream, capture_stdout=True, capture_stderr=True
+            )
         except ffmpeg.Error as e:
             print(f"Error occured: {e}")
             end_time = time.monotonic()
             duration = timedelta(seconds=end_time - start_time)
-            return e.stdout, e.stderr, convert_succeded, duration
+            return e.stdout.decode(), e.stderr.decode(), convert_succeded, duration
         convert_succeded = True
         end_time = time.monotonic()
         duration = timedelta(seconds=end_time - start_time)
-        return std_out, std_err, convert_succeded, duration
+        return std_out.decode(), std_err.decode(), convert_succeded, duration
 
     def create_lock_file(self, obj_config: dict, bucket_name: str) -> bool:
         """Creates empty lock file on object storage bucket"""
