@@ -113,12 +113,16 @@ class ProcessedFile:
         # core opts
         opts_dict: dict[str, Any] = {
             "c:v": self.processing_params.video_codec,
-            "pix_fmt": self.processing_params.pix_fmt,
             "c:a": "copy",
             "c:s": "copy",
             "v": "error",
         }
         # conditional opts
+        if (
+            self.processing_params.pix_fmt is not None
+            and self.processing_params.video_codec != "copy"
+        ):
+            opts_dict.update({"pix_fmt": self.processing_params.pix_fmt})
         if self.processing_params.target_crf is not None:
             opts_dict.update({"crf": str(self.processing_params.target_crf)})
         elif self.processing_params.target_qp is not None:

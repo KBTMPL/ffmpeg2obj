@@ -110,7 +110,7 @@ def parse_args() -> argparse.Namespace:
         "--video-codec",
         dest="video_codec",
         type=str,
-        default="libx265",
+        default="copy",
         help="video codec for transcoding of the media files",
     )
 
@@ -118,7 +118,6 @@ def parse_args() -> argparse.Namespace:
         "--pix-fmt",
         dest="pix_fmt",
         type=str,
-        default="yuv420p10le",
         help="pix fmt for transcoding of the media files",
     )
 
@@ -173,7 +172,7 @@ def parse_args() -> argparse.Namespace:
         help="disables default upload to object storage and stores files locally",
     )
 
-    qf_group = parser.add_mutually_exclusive_group(required=True)
+    qf_group = parser.add_mutually_exclusive_group()
 
     qf_group.add_argument(
         "-qp",
