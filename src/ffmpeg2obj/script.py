@@ -147,6 +147,14 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--concat",
+        dest="concat",
+        action="store_true",
+        default=False,
+        help="concatenates files within same directory",
+    )
+
+    parser.add_argument(
         "--height",
         dest="target_height",
         type=int,
@@ -192,10 +200,18 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_source_files(
-    src_dir: str, ignored_subdir: str, obj_prefix: str, file_extension: str
-) -> dict[str, str]:
-    """Looks for source files"""
-    source_files = {}
+    src_dir: str,
+    ignored_subdir: str,
+    obj_prefix: str,
+    file_extension: str,
+    concat: bool,
+) -> dict[str, list[str]]:
+    """Looks for source files, performs concatenation of files in same directories if requested"""
+
+    def get_concat_base(object_name):
+        return "/".join(object_name.split("/")[:-1])
+
+    found_source_files: dict[str, str] = {}
     for root, _, files in os.walk(src_dir):
         for name in files:
             if ignored_subdir not in root and name.lower().endswith(
@@ -206,7 +222,26 @@ def get_source_files(
                     "NFC", real_path.replace(src_dir, obj_prefix)
                 )
                 source_file_dict = {object_name: real_path}
-                source_files.update(source_file_dict)
+                found_source_files.update(source_file_dict)
+
+    source_files: dict[str, list[str]] = {}
+    if concat:
+        concat_base_mapping: dict[str, str] = {}
+        concat_object_name_mapping: dict[str, str] = {}
+        for object_name, real_path in found_source_files.items():
+            concat_base = get_concat_base(object_name)
+            concat_base_mapping.update({real_path: concat_base})
+            if concat_object_name_mapping.get(concat_base) is None:
+                concat_object_name_mapping.update({concat_base: object_name})
+        for real_path, concat_base in concat_base_mapping.items():
+            object_name = concat_object_name_mapping.get(concat_base)
+            if source_files.get(object_name) is None:
+                source_files.update({object_name: [real_path]})
+            else:
+                source_files.get(object_name).append(real_path)
+    else:
+        for object_name, real_path in found_source_files.items():
+            source_files.update({object_name: real_path})
     return source_files
 
 
@@ -245,7 +280,7 @@ def get_bucket_files(
 
 
 def get_processed_files(
-    source_files: dict,
+    source_files: dict[str, list[str]],
     bucket_objects: list,
     file_extension: str,
     dst_dir: str,
@@ -253,13 +288,13 @@ def get_processed_files(
 ) -> list[ProcessedFile]:
     """Returns list of processed files based on collected data"""
     processed_files = []
-    for object_name, real_path in source_files.items():
+    for object_name, real_paths in source_files.items():
         is_uploaded = object_name in bucket_objects
         has_lockfile = object_name + ".lock" in bucket_objects
         processed_files.append(
             ProcessedFile(
                 object_name,
-                real_path,
+                real_paths,
                 file_extension,
                 dst_dir,
                 has_lockfile,
@@ -400,7 +435,11 @@ def main():
         sys.exit(3)
 
     source_files = get_source_files(
-        args.src_dir, args.ignored_subdir, args.obj_prefix, args.file_extension
+        args.src_dir,
+        args.ignored_subdir,
+        args.obj_prefix,
+        args.file_extension,
+        args.concat,
     )
 
     obj_resource = get_obj_resource(OBJ_CONFIG)

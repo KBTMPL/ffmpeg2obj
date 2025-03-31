@@ -2,6 +2,8 @@
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes, too-many-arguments
 
+import os
+import tempfile
 import argparse
 import hashlib
 import json
@@ -55,7 +57,7 @@ class ProcessedFile:
     def __init__(
         self,
         object_name: str,
-        real_path: str,
+        real_paths: list[str],
         file_extension: str,
         dst_dir: str,
         has_lockfile: bool,
@@ -63,7 +65,7 @@ class ProcessedFile:
         processing_params: ProcessingParams,
     ) -> None:
         self.object_name = object_name
-        self.real_path = real_path
+        self.real_paths = real_paths
         self.file_extension = file_extension
         self.dst_dir = dst_dir if dst_dir.endswith("/") else dst_dir + "/"
         self.has_lockfile = has_lockfile
@@ -79,7 +81,7 @@ class ProcessedFile:
     def __str__(self) -> str:
         out = []
         out += ["object_name: " + self.object_name]
-        out += ["real_path: " + self.real_path]
+        out += ["real_path: " + ",".join(self.real_paths)]
         out += ["has_lockfile: " + str(self.has_lockfile)]
         out += ["is_uploaded: " + str(self.is_uploaded)]
         out += ["hashed_name: " + self.hashed_name]
@@ -100,7 +102,7 @@ class ProcessedFile:
 
     def get_coded_res(self) -> list[int]:
         """Returns height and width for the file from real_path"""
-        probe_result = ffmpeg.probe(self.real_path)
+        probe_result = ffmpeg.probe(self.real_paths[0])
         video_stream = list(
             filter(lambda x: x["codec_type"] == "video", probe_result["streams"])
         )[0]
@@ -110,6 +112,7 @@ class ProcessedFile:
     def convert(self, verbose: bool = False) -> tuple[str, str, bool, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         convert_succeded = False
+        concat_enabled = len(self.real_paths) > 1
         # core opts
         opts_dict: dict[str, Any] = {
             "c:v": self.processing_params.video_codec,
@@ -141,7 +144,17 @@ class ProcessedFile:
                 + ":".join(str(x) for x in self.processing_params.target_res)
             }
             opts_dict.update(scale_dict)
-        stream = ffmpeg.input(self.real_path)
+        if concat_enabled:
+            temp_file_byte_contents = (
+                "\n".join(f"file '{path}'" for path in self.real_paths) + "\n"
+            ).encode()
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(temp_file_byte_contents)
+            input_file = temp_file.name
+            stream = ffmpeg.input(input_file, f="concat", safe="0")
+        else:
+            input_file = self.real_paths[0]
+            stream = ffmpeg.input(input_file)
         stream = ffmpeg.output(stream, self.dst_hashed_path, **opts_dict)
         start_time = time.monotonic()
         if verbose:
@@ -156,6 +169,8 @@ class ProcessedFile:
             duration = timedelta(seconds=end_time - start_time)
             return e.stdout.decode(), e.stderr.decode(), convert_succeded, duration
         convert_succeded = True
+        if concat_enabled:
+            os.remove(input_file)
         end_time = time.monotonic()
         duration = timedelta(seconds=end_time - start_time)
         return std_out.decode(), std_err.decode(), convert_succeded, duration
