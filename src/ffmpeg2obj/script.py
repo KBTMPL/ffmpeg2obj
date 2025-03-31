@@ -284,6 +284,7 @@ def convert_and_upload(
 
     def convert(processed_file: ProcessedFile) -> bool:
         """Handles conversion of source file"""
+        convert_succeded = False
         with lock:
             if not noop:
                 # TODO: improve overall communicating job progress to user
@@ -306,10 +307,11 @@ def convert_and_upload(
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
-            return convert_succeded
+        return convert_succeded
 
     def upload(processed_file: ProcessedFile) -> bool:
         """Handles upload of destination file to object storage"""
+        upload_succeded = False
         if not processed_file.is_uploaded and os.path.isfile(
             processed_file.dst_hashed_path
         ):
@@ -341,6 +343,7 @@ def convert_and_upload(
 
     def store(processed_file: ProcessedFile) -> bool:
         """Handles local storage of destination file"""
+        store_succeded = False
         if os.path.isfile(processed_file.dst_hashed_path):
             print(
                 f"Storing file {processed_file.object_name}" " in destination directory"
@@ -368,6 +371,9 @@ def convert_and_upload(
         )
 
     processed_file: ProcessedFile = queue.get()
+    convert_succeded = False
+    upload_succeded = False
+    store_succeded = False
     if needs_conversion(processed_file):
         convert_succeded = convert(processed_file)
     if upload_enabled:
