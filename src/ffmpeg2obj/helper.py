@@ -2,11 +2,11 @@
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes, too-many-arguments
 
-import os
-import tempfile
 import argparse
 import hashlib
 import json
+import os
+import tempfile
 import time
 from datetime import timedelta
 from typing import Any
