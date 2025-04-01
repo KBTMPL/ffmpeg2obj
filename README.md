@@ -55,10 +55,9 @@ The built-in help provides handles and default values for implemented functions
 
 ```bash
 (venv) ~/ffmpeg2obj$ ffmpeg2obj --help
-usage: ffmpeg2obj [-h] [-v] [--noop] [--force-cleanup] [--disable-upload] [-s SRC_DIR] [-d DST_DIR]
-                  [-i IGNORED_SUBDIR] [-o OBJ_PREFIX] -b BUCKET_NAME [-e FILE_EXTENSION] [-vc VIDEO_CODEC]
-                  [--pix-fmt PIX_FMT] [-l LANGS] [--width TARGET_WIDTH] [--resize] [--height TARGET_HEIGHT]
-                  (-qp TARGET_QP | -crf TARGET_CRF)
+usage: ffmpeg2obj [-h] [-v] [--noop] [--force-cleanup] [-s SRC_DIR] [-d DST_DIR] [-i IGNORED_SUBDIR] [-o OBJ_PREFIX] [-e FILE_EXTENSION]
+                  [-vc VIDEO_CODEC] [--pix-fmt PIX_FMT] [-l LANGS] [--width TARGET_WIDTH] [--resize] [--concat] [--height TARGET_HEIGHT]
+                  (-b BUCKET_NAME | --disable-upload) [-qp TARGET_QP | -crf TARGET_CRF]
 
 Simple tool to compress blu ray movie library and store it in obj
 
@@ -67,7 +66,6 @@ options:
   -v, --verbose         show additional information
   --noop                script executes but takes no action
   --force-cleanup       cleans up even on upload failure
-  --disable-upload      disables default upload to object storage and stores files locally
   -s SRC_DIR, --source-dir SRC_DIR
                         source directory for media to be transcoded
   -d DST_DIR, --destination-dir DST_DIR
@@ -75,8 +73,6 @@ options:
   -i IGNORED_SUBDIR, --ignored-subdir IGNORED_SUBDIR
                         ignored subdirectories
   -o OBJ_PREFIX, --obj-prefix OBJ_PREFIX
-                        source directory for media to be transcoded
-  -b BUCKET_NAME, --bucket-name BUCKET_NAME
                         source directory for media to be transcoded
   -e FILE_EXTENSION, --file-extension FILE_EXTENSION
                         extension for the media files to be transcoded
@@ -87,8 +83,12 @@ options:
                         selected languages transcoding of the media files
   --width TARGET_WIDTH  target width for the media files to be transcoded
   --resize              scale input files to height x width
+  --concat              concatenates files within same directory
   --height TARGET_HEIGHT
                         target height for the media files to be transcoded
+  -b BUCKET_NAME, --bucket-name BUCKET_NAME
+                        source directory for media to be transcoded
+  --disable-upload      disables default upload to object storage and stores files locally
   -qp TARGET_QP         Quantization Parameter for the media files to be transcoded
   -crf TARGET_CRF       Constant Rate Factor for the media files to be transcoded
 (venv) ~/ffmpeg2obj$
