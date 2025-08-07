@@ -130,14 +130,15 @@ class ProcessedFile:
             opts_dict.update({"crf": str(self.processing_params.target_crf)})
         elif self.processing_params.target_qp is not None:
             opts_dict.update({"qp": str(self.processing_params.target_qp)})
-        lang_map = []
-        for lang in self.processing_params.langs:
-            lang_map.append("0:m:language:" + lang)
-        lang_dict = {"map": tuple(lang_map)}
-        opts_dict.update(lang_dict)
+        if self.processing_params.langs != ["all"]:
+            lang_map = []
+            for lang in self.processing_params.langs:
+                lang_map.append("0:m:language:" + lang)
+            lang_dict = {"map": tuple(lang_map)}
+            opts_dict.update(lang_dict)
         if (
-            self.processing_params.target_res != self.get_coded_res()
-            and self.processing_params.resize
+            self.processing_params.resize
+            and self.processing_params.target_res != self.get_coded_res()
         ):
             scale_dict = {
                 "vf": "scale="

@@ -80,14 +80,14 @@ options:
                         video codec for transcoding of the media files
   --pix-fmt PIX_FMT     pix fmt for transcoding of the media files
   -l LANGS, --languages LANGS
-                        selected languages transcoding of the media files
+                        selected languages transcoding of the media files, all keeps every track
   --width TARGET_WIDTH  target width for the media files to be transcoded
   --resize              scale input files to height x width
   --concat              concatenates files within same directory
   --height TARGET_HEIGHT
                         target height for the media files to be transcoded
   -b BUCKET_NAME, --bucket-name BUCKET_NAME
-                        source directory for media to be transcoded
+                        target bucket name to which output files will be uploaded
   --disable-upload      disables default upload to object storage and stores files locally
   -qp TARGET_QP         Quantization Parameter for the media files to be transcoded
   -crf TARGET_CRF       Constant Rate Factor for the media files to be transcoded

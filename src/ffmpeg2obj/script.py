@@ -87,6 +87,7 @@ def parse_args() -> argparse.Namespace:
         help="ignored subdirectories",
     )
 
+    # TODO: clarify help message here and/or improve/validate this opt
     parser.add_argument(
         "-o",
         "--obj-prefix",
@@ -127,7 +128,7 @@ def parse_args() -> argparse.Namespace:
         dest="langs",
         action=SplitArgs,
         default=["pol", "eng"],
-        help="selected languages transcoding of the media files",
+        help="selected languages transcoding of the media files, all keeps every track",
     )
 
     parser.add_argument(
@@ -169,7 +170,7 @@ def parse_args() -> argparse.Namespace:
         "--bucket-name",
         dest="bucket_name",
         type=str,
-        help="source directory for media to be transcoded",
+        help="target bucket name to which output files will be uploaded",
     )
 
     obj_group.add_argument(
@@ -241,7 +242,7 @@ def get_source_files(
                 source_files.get(object_name).append(real_path)
     else:
         for object_name, real_path in found_source_files.items():
-            source_files.update({object_name: real_path})
+            source_files.update({object_name: [real_path]})
     return source_files
 
 
