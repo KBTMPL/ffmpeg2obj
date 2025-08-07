@@ -127,7 +127,7 @@ def parse_args() -> argparse.Namespace:
         dest="langs",
         action=SplitArgs,
         default=["pol", "eng"],
-        help="selected languages transcoding of the media files",
+        help="selected languages transcoding of the media files, all keeps every track",
     )
 
     parser.add_argument(

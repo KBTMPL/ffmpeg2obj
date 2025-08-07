@@ -80,7 +80,7 @@ options:
                         video codec for transcoding of the media files
   --pix-fmt PIX_FMT     pix fmt for transcoding of the media files
   -l LANGS, --languages LANGS
-                        selected languages transcoding of the media files
+                        selected languages transcoding of the media files, all keeps every track
   --width TARGET_WIDTH  target width for the media files to be transcoded
   --resize              scale input files to height x width
   --concat              concatenates files within same directory
