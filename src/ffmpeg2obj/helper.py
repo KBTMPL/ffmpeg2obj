@@ -137,8 +137,8 @@ class ProcessedFile:
             lang_dict = {"map": tuple(lang_map)}
             opts_dict.update(lang_dict)
         if (
-            self.processing_params.resize and
-            self.processing_params.target_res != self.get_coded_res()
+            self.processing_params.resize
+            and self.processing_params.target_res != self.get_coded_res()
         ):
             scale_dict = {
                 "vf": "scale="
