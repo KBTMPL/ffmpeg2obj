@@ -87,6 +87,7 @@ def parse_args() -> argparse.Namespace:
         help="ignored subdirectories",
     )
 
+    # TODO: clarify help message here and/or improve/validate this opt
     parser.add_argument(
         "-o",
         "--obj-prefix",
