@@ -241,7 +241,7 @@ def get_source_files(
                 source_files.get(object_name).append(real_path)
     else:
         for object_name, real_path in found_source_files.items():
-            source_files.update({object_name: real_path})
+            source_files.update({object_name: [real_path]})
     return source_files
 
 
