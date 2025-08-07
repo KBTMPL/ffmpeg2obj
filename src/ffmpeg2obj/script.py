@@ -169,7 +169,7 @@ def parse_args() -> argparse.Namespace:
         "--bucket-name",
         dest="bucket_name",
         type=str,
-        help="source directory for media to be transcoded",
+        help="target bucket name to which output files will be uploaded",
     )
 
     obj_group.add_argument(

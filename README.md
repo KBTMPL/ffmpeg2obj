@@ -87,7 +87,7 @@ options:
   --height TARGET_HEIGHT
                         target height for the media files to be transcoded
   -b BUCKET_NAME, --bucket-name BUCKET_NAME
-                        source directory for media to be transcoded
+                        target bucket name to which output files will be uploaded
   --disable-upload      disables default upload to object storage and stores files locally
   -qp TARGET_QP         Quantization Parameter for the media files to be transcoded
   -crf TARGET_CRF       Constant Rate Factor for the media files to be transcoded
