@@ -55,8 +55,9 @@ The built-in help provides handles and default values for implemented functions
 
 ```bash
 (venv) ~/ffmpeg2obj$ ffmpeg2obj --help
-usage: ffmpeg2obj [-h] [-v] [--noop] [--force-cleanup] [-s SRC_DIR] [-d DST_DIR] [-i IGNORED_SUBDIR] [-o OBJ_PREFIX] [-e FILE_EXTENSION]
-                  [-vc VIDEO_CODEC] [--pix-fmt PIX_FMT] [-l LANGS] [--width TARGET_WIDTH] [--resize] [--concat] [--height TARGET_HEIGHT]
+usage: ffmpeg2obj [-h] [-v] [--noop] [--force-cleanup] [-s SRC_DIR] [-d DST_DIR] [-i IGNORED_SUBDIR] [-o OBJ_PREFIX]
+                  [--source-file-extension SOURCE_FILE_EXTENSION] [-e FILE_EXTENSION] [-vc VIDEO_CODEC] [--pix-fmt PIX_FMT]
+                  [-l LANGS] [--width TARGET_WIDTH] [--resize] [--concat] [--height TARGET_HEIGHT]
                   (-b BUCKET_NAME | --disable-upload) [-qp TARGET_QP | -crf TARGET_CRF]
 
 Simple tool to compress blu ray movie library and store it in obj
@@ -74,8 +75,10 @@ options:
                         ignored subdirectories
   -o OBJ_PREFIX, --obj-prefix OBJ_PREFIX
                         source directory for media to be transcoded
+  --source-file-extension SOURCE_FILE_EXTENSION
+                        source extension for the media files to be transcoded
   -e FILE_EXTENSION, --file-extension FILE_EXTENSION
-                        extension for the media files to be transcoded
+                        target extension for the media files to be transcoded
   -vc VIDEO_CODEC, --video-codec VIDEO_CODEC
                         video codec for transcoding of the media files
   --pix-fmt PIX_FMT     pix fmt for transcoding of the media files

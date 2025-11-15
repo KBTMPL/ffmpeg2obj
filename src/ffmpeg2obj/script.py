@@ -98,12 +98,20 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--source-file-extension",
+        dest="source_file_extension",
+        type=str,
+        default="mkv",
+        help="source extension for the media files to be transcoded",
+    )
+
+    parser.add_argument(
         "-e",
         "--file-extension",
         dest="file_extension",
         type=str,
         default="mkv",
-        help="extension for the media files to be transcoded",
+        help="target extension for the media files to be transcoded",
     )
 
     parser.add_argument(
@@ -439,7 +447,7 @@ def main():
         args.src_dir,
         args.ignored_subdir,
         args.obj_prefix,
-        args.file_extension,
+        args.source_file_extension,
         args.concat,
     )
 
