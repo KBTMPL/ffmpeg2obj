@@ -300,7 +300,9 @@ def get_processed_files(
     processed_files = []
     for object_name, real_paths in source_files.items():
         if source_file_extension != target_file_extension:
-            target_object_name = object_name.replace(source_file_extension, target_file_extension)
+            target_object_name = object_name.replace(
+                source_file_extension, target_file_extension
+            )
         else:
             target_object_name = object_name
         is_uploaded = target_object_name in bucket_objects
