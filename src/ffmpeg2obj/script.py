@@ -291,20 +291,25 @@ def get_bucket_files(
 def get_processed_files(
     source_files: dict[str, list[str]],
     bucket_objects: list,
-    file_extension: str,
+    source_file_extension: str,
+    target_file_extension: str,
     dst_dir: str,
     processing_params: ProcessingParams,
 ) -> list[ProcessedFile]:
     """Returns list of processed files based on collected data"""
     processed_files = []
     for object_name, real_paths in source_files.items():
-        is_uploaded = object_name in bucket_objects
-        has_lockfile = object_name + ".lock" in bucket_objects
+        if source_file_extension != target_file_extension:
+            target_object_name = object_name.replace(source_file_extension, target_file_extension)
+        else:
+            target_object_name = object_name
+        is_uploaded = target_object_name in bucket_objects
+        has_lockfile = target_object_name + ".lock" in bucket_objects
         processed_files.append(
             ProcessedFile(
-                object_name,
+                target_object_name,
                 real_paths,
-                file_extension,
+                target_file_extension,
                 dst_dir,
                 has_lockfile,
                 is_uploaded,
@@ -470,6 +475,7 @@ def main():
     processed_files = get_processed_files(
         source_files,
         bucket_files,
+        args.source_file_extension,
         args.file_extension,
         args.dst_dir,
         processing_params,
