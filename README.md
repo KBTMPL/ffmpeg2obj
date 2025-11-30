@@ -56,9 +56,9 @@ The built-in help provides handles and default values for implemented functions
 ```bash
 (venv) ~/ffmpeg2obj$ ffmpeg2obj --help
 usage: ffmpeg2obj [-h] [-v] [--noop] [--force-cleanup] [-s SRC_DIR] [-d DST_DIR] [-i IGNORED_SUBDIR] [-o OBJ_PREFIX]
-                  [--source-file-extension SOURCE_FILE_EXTENSION] [-e FILE_EXTENSION] [-vc VIDEO_CODEC] [--pix-fmt PIX_FMT]
-                  [-l LANGS] [--width TARGET_WIDTH] [--resize] [--concat] [--height TARGET_HEIGHT]
-                  (-b BUCKET_NAME | --disable-upload) [-qp TARGET_QP | -crf TARGET_CRF]
+                  [--source-file-extension SOURCE_FILE_EXTENSION] [-e FILE_EXTENSION] [-vc VIDEO_CODEC] [--pix-fmt PIX_FMT] [-l LANGS]
+                  [-ll] [--width TARGET_WIDTH] [--resize] [--concat] [--height TARGET_HEIGHT] (-b BUCKET_NAME | --disable-upload)
+                  [-qp TARGET_QP | -crf TARGET_CRF]
 
 Simple tool to compress blu ray movie library and store it in obj
 
@@ -84,6 +84,8 @@ options:
   --pix-fmt PIX_FMT     pix fmt for transcoding of the media files
   -l LANGS, --languages LANGS
                         selected languages transcoding of the media files, all keeps every track
+  -ll, --loose-languages
+                        prevents ffmpeg failures if media to be transcoded lack requested languages
   --width TARGET_WIDTH  target width for the media files to be transcoded
   --resize              scale input files to height x width
   --concat              concatenates files within same directory
