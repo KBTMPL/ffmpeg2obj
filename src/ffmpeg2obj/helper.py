@@ -9,7 +9,7 @@ import os
 import tempfile
 import time
 from datetime import timedelta
-from typing import Any
+from typing import Any, Optional
 
 import boto3
 import botocore
@@ -35,6 +35,7 @@ class ProcessingParams:
         video_codec: str,
         pix_fmt: str,
         langs: list[str],
+        loose_langs: bool,
         target_qp: int,
         target_crf: int,
     ) -> None:
@@ -42,6 +43,7 @@ class ProcessingParams:
         self.video_codec = video_codec
         self.pix_fmt = pix_fmt
         self.langs = langs
+        self.loose_langs = loose_langs
         self.target_qp = target_qp
         self.target_crf = target_crf
         self.target_res: list[int] = [target_width, target_height]
@@ -77,6 +79,7 @@ class ProcessedFile:
         self.dst_hashed_path: str = (
             self.dst_dir + self.hashed_name + "." + self.file_extension
         )
+        self.probe_result: Optional[dict] = None
 
     def __str__(self) -> str:
         out = []
@@ -102,9 +105,10 @@ class ProcessedFile:
 
     def get_coded_res(self) -> list[int]:
         """Returns height and width for the file from real_path"""
-        probe_result = ffmpeg.probe(self.real_paths[0])
+        if self.probe_result is None:
+            self.probe_result = ffmpeg.probe(self.real_paths[0])
         video_stream = list(
-            filter(lambda x: x["codec_type"] == "video", probe_result["streams"])
+            filter(lambda x: x["codec_type"] == "video", self.probe_result["streams"])
         )[0]
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
@@ -131,8 +135,22 @@ class ProcessedFile:
         elif self.processing_params.target_qp is not None:
             opts_dict.update({"qp": str(self.processing_params.target_qp)})
         if self.processing_params.langs != ["all"]:
+            requested_langs = set(self.processing_params.langs)
+            if self.processing_params.loose_langs:
+                langs = set()
+                if self.probe_result is None:
+                    self.probe_result = ffmpeg.probe(self.real_paths[0])
+                for stream in self.probe_result["streams"]:
+                    try:
+                        lang = stream["tags"]["language"]
+                        if lang in requested_langs:
+                            langs.add(lang)
+                    except KeyError:
+                        pass
+            else:
+                langs = requested_langs
             lang_map = []
-            for lang in self.processing_params.langs:
+            for lang in langs:
                 lang_map.append("0:m:language:" + lang)
             lang_dict = {"map": tuple(lang_map)}
             opts_dict.update(lang_dict)
