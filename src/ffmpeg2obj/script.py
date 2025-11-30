@@ -140,6 +140,15 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "-ll",
+        "--loose-languages",
+        dest="loose_langs",
+        action="store_true",
+        default=False,
+        help="prevents ffmpeg failures if media to be transcoded lack requested languages",
+    )
+
+    parser.add_argument(
         "--width",
         dest="target_width",
         type=int,
@@ -471,6 +480,7 @@ def main():
         args.video_codec,
         args.pix_fmt,
         args.langs,
+        args.loose_langs,
         args.target_qp,
         args.target_crf,
     )
