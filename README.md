@@ -1,6 +1,6 @@
 # ffmpeg2obj
 
-With this tool you can easily automate conversion of your movie library and its upload to object (and also to local) storage. 
+With this tool you can easily automate conversion of your movie library and its upload to object (and also to local) storage.
 
 ## Installation
 
