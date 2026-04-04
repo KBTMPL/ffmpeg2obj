@@ -284,16 +284,17 @@ def selected_bucket_exist(
 
 def get_bucket_files(
     obj_resource: boto3.resource.__class__, bucket_name: str | None
-) -> list[str]:
+) -> list[str] | None:
     """Returns objects from given object storage bucket"""
     bucket_files: list[str] = []
     if bucket_name is None:
-        return bucket_files
-    if selected_bucket_exist(obj_resource, bucket_name):
-        bucket_files += list(
-            unicodedata.normalize("NFC", file.key)
-            for file in obj_resource.Bucket(bucket_name).objects.all()
-        )
+        return None
+    if not selected_bucket_exist(obj_resource, bucket_name):
+        return None
+    bucket_files += list(
+        unicodedata.normalize("NFC", file.key)
+        for file in obj_resource.Bucket(bucket_name).objects.all()
+    )
     return bucket_files
 
 
@@ -469,6 +470,13 @@ def main():
 
     obj_resource = get_obj_resource(OBJ_CONFIG)
     bucket_files = get_bucket_files(obj_resource, args.bucket_name)
+
+    if bucket_files is None and args.upload_enabled:
+        print(
+            f"Bucket {args.bucket_name} does not exist"
+            " or is not accessible with provided credentials"
+        )
+        sys.exit(4)
 
     if args.noop:
         print("noop enabled, will not take any actions")
