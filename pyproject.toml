@@ -17,7 +17,7 @@ classifiers = [
 ]
 dependencies = [
   "boto3==1.34.92",
-  "ffmpeg-python@ git+https://github.com/kkroening/ffmpeg-python.git",
+  "ffmpeg-python @ git+https://github.com/kkroening/ffmpeg-python.git",
   "pydantic==2.7.1",
 ]
 [project.optional-dependencies]
