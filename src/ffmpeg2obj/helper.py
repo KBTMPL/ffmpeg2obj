@@ -175,12 +175,14 @@ class ProcessedFile:
         stream = ffmpeg.output(stream, self.dst_hashed_path, **opts_dict)
         return stream, input_file, concat_enabled
 
-    def convert(self, verbose: bool = False) -> tuple[str, str, bool, timedelta]:
+    def print_ffmpeg_command(self) -> None:
+        """Prints ffmpeg command for debugging purposes"""
+        print(" ".join(ffmpeg.compile(self.stream)))
+
+    def convert(self) -> tuple[str, str, bool, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         convert_succeded = False
         start_time = time.monotonic()
-        if verbose:
-            print(" ".join(ffmpeg.compile(self.stream)))
         try:
             std_out, std_err = ffmpeg.run(
                 self.stream, capture_stdout=True, capture_stderr=True

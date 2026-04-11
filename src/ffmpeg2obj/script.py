@@ -350,8 +350,10 @@ def convert_and_upload(
             if not noop:
                 # TODO: improve overall communicating job progress to user
                 print("Starting conversion for " + processed_file.object_name)
+                if verbose:
+                    processed_file.print_ffmpeg_command()
                 std_out, std_err, convert_succeded, convert_duration = (
-                    processed_file.convert(verbose)
+                    processed_file.convert()
                 )
                 if verbose:
                     print(
@@ -368,6 +370,8 @@ def convert_and_upload(
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
+                if verbose:
+                    processed_file.print_ffmpeg_command()
         return convert_succeded
 
     def upload(processed_file: ProcessedFile) -> bool:
