@@ -124,6 +124,13 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--preset",
+        dest="preset",
+        type=str,
+        help="ffmpeg preset for the selected video codec",
+    )
+
+    parser.add_argument(
         "--pix-fmt",
         dest="pix_fmt",
         type=str,
@@ -495,6 +502,7 @@ def main():
         args.loose_langs,
         args.target_qp,
         args.target_crf,
+        args.preset,
     )
     processed_files = get_processed_files(
         source_files,

@@ -38,6 +38,7 @@ class ProcessingParams:
         loose_langs: bool,
         target_qp: int,
         target_crf: int,
+        preset: str | None,
     ) -> None:
         self.resize = resize
         self.video_codec = video_codec
@@ -46,6 +47,7 @@ class ProcessingParams:
         self.loose_langs = loose_langs
         self.target_qp = target_qp
         self.target_crf = target_crf
+        self.preset = preset
         self.target_res: list[int] = [target_width, target_height]
 
     def to_json_str(self):
@@ -134,6 +136,11 @@ class ProcessedFile:
             opts_dict.update({"crf": str(self.processing_params.target_crf)})
         elif self.processing_params.target_qp is not None:
             opts_dict.update({"qp": str(self.processing_params.target_qp)})
+        if (
+            self.processing_params.preset is not None
+            and self.processing_params.video_codec != "copy"
+        ):
+            opts_dict.update({"preset": self.processing_params.preset})
         if self.processing_params.langs != ["all"]:
             requested_langs = set(self.processing_params.langs)
             if self.processing_params.loose_langs:
