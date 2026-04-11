@@ -124,6 +124,13 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--preset",
+        dest="preset",
+        type=str,
+        help="ffmpeg preset for the selected video codec",
+    )
+
+    parser.add_argument(
         "--pix-fmt",
         dest="pix_fmt",
         type=str,
@@ -350,8 +357,10 @@ def convert_and_upload(
             if not noop:
                 # TODO: improve overall communicating job progress to user
                 print("Starting conversion for " + processed_file.object_name)
+                if verbose:
+                    processed_file.print_ffmpeg_command()
                 std_out, std_err, convert_succeded, convert_duration = (
-                    processed_file.convert(verbose)
+                    processed_file.convert()
                 )
                 if verbose:
                     print(
@@ -368,6 +377,8 @@ def convert_and_upload(
                     processed_file.create_lock_file(obj_config, bucket_name)
             else:
                 print("Would have start conversion for " + processed_file.object_name)
+                if verbose:
+                    processed_file.print_ffmpeg_command()
         return convert_succeded
 
     def upload(processed_file: ProcessedFile) -> bool:
@@ -491,6 +502,7 @@ def main():
         args.loose_langs,
         args.target_qp,
         args.target_crf,
+        args.preset,
     )
     processed_files = get_processed_files(
         source_files,
