@@ -113,9 +113,8 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def convert(self, verbose: bool = False) -> tuple[str, str, bool, timedelta]:
-        """Runs ffmpeg against the file from real_path and stores it in /tmp"""
-        convert_succeded = False
+    def build_ffmpeg_command(self) -> tuple[Any, str, bool]:
+        """Builds the ffmpeg stream and input path for conversion."""
         concat_enabled = len(self.real_paths) > 1
         # core opts
         opts_dict: dict[str, Any] = {
@@ -149,20 +148,18 @@ class ProcessedFile:
                         pass
             else:
                 langs = requested_langs
-            lang_map = []
-            for lang in langs:
-                lang_map.append("0:m:language:" + lang)
-            lang_dict = {"map": tuple(lang_map)}
-            opts_dict.update(lang_dict)
+            lang_map = [f"0:m:language:{lang}" for lang in langs]
+            opts_dict.update({"map": tuple(lang_map)})
         if (
             self.processing_params.resize
             and self.processing_params.target_res != self.get_coded_res()
         ):
-            scale_dict = {
-                "vf": "scale="
-                + ":".join(str(x) for x in self.processing_params.target_res)
-            }
-            opts_dict.update(scale_dict)
+            opts_dict.update(
+                {
+                    "vf": "scale="
+                    + ":".join(str(x) for x in self.processing_params.target_res)
+                }
+            )
         if concat_enabled:
             temp_file_byte_contents = (
                 "\n".join(f"file '{path}'" for path in self.real_paths) + "\n"
@@ -175,6 +172,12 @@ class ProcessedFile:
             input_file = self.real_paths[0]
             stream = ffmpeg.input(input_file)
         stream = ffmpeg.output(stream, self.dst_hashed_path, **opts_dict)
+        return stream, input_file, concat_enabled
+
+    def convert(self, verbose: bool = False) -> tuple[str, str, bool, timedelta]:
+        """Runs ffmpeg against the file from real_path and stores it in /tmp"""
+        convert_succeded = False
+        stream, input_file, concat_enabled = self.build_ffmpeg_command()
         start_time = time.monotonic()
         if verbose:
             print(" ".join(ffmpeg.compile(stream)))
