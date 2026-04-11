@@ -80,6 +80,7 @@ class ProcessedFile:
             self.dst_dir + self.hashed_name + "." + self.file_extension
         )
         self.probe_result: Optional[dict] = None
+        self.stream, self.input_file, self.concat_enabled = self._build_ffmpeg_command()
 
     def __str__(self) -> str:
         out = []
@@ -113,7 +114,7 @@ class ProcessedFile:
         coded_res = [video_stream["coded_width"], video_stream["coded_height"]]
         return coded_res
 
-    def build_ffmpeg_command(self) -> tuple[Any, str, bool]:
+    def _build_ffmpeg_command(self) -> tuple[Any, str, bool]:
         """Builds the ffmpeg stream and input path for conversion."""
         concat_enabled = len(self.real_paths) > 1
         # core opts
@@ -177,13 +178,12 @@ class ProcessedFile:
     def convert(self, verbose: bool = False) -> tuple[str, str, bool, timedelta]:
         """Runs ffmpeg against the file from real_path and stores it in /tmp"""
         convert_succeded = False
-        stream, input_file, concat_enabled = self.build_ffmpeg_command()
         start_time = time.monotonic()
         if verbose:
-            print(" ".join(ffmpeg.compile(stream)))
+            print(" ".join(ffmpeg.compile(self.stream)))
         try:
             std_out, std_err = ffmpeg.run(
-                stream, capture_stdout=True, capture_stderr=True
+                self.stream, capture_stdout=True, capture_stderr=True
             )
         except ffmpeg.Error as e:
             print(f"Error occured: {e}")
@@ -191,8 +191,8 @@ class ProcessedFile:
             duration = timedelta(seconds=end_time - start_time)
             return e.stdout.decode(), e.stderr.decode(), convert_succeded, duration
         convert_succeded = True
-        if concat_enabled:
-            os.remove(input_file)
+        if self.concat_enabled:
+            os.remove(self.input_file)
         end_time = time.monotonic()
         duration = timedelta(seconds=end_time - start_time)
         return std_out.decode(), std_err.decode(), convert_succeded, duration
