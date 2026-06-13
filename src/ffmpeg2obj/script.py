@@ -322,8 +322,16 @@ def get_processed_files(
             )
         else:
             target_object_name = object_name
-        is_uploaded = target_object_name in bucket_objects
-        has_lockfile = target_object_name + ".lock" in bucket_objects
+        is_uploaded = (
+            target_object_name in bucket_objects
+            if bucket_objects is not None
+            else False
+        )
+        has_lockfile = (
+            target_object_name + ".lock" in bucket_objects
+            if bucket_objects is not None
+            else False
+        )
         processed_files.append(
             ProcessedFile(
                 target_object_name,
